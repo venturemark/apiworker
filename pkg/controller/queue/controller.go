@@ -20,5 +20,5 @@ func NewController(c ControllerConfig) (*Controller, error) {
 }
 
 func (c *Controller) Boot() error {
-	return nil
+	select {}
 }
