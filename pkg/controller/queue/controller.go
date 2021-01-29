@@ -1,9 +1,10 @@
 package queue
 
 import (
-	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/rescue"
+
+	"github.com/venturemark/apiworker/pkg/handler"
 )
 
 type ControllerConfig struct {
