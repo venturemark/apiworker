@@ -1,6 +1,8 @@
 package queue
 
 import (
+	"time"
+
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/rescue"
 
@@ -20,5 +22,9 @@ func NewController(c ControllerConfig) (*Controller, error) {
 }
 
 func (c *Controller) Boot() error {
-	select {}
+	for {
+		select {
+		case <-time.After(5 * time.Second):
+		}
+	}
 }
