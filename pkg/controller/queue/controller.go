@@ -22,9 +22,8 @@ func NewController(c ControllerConfig) (*Controller, error) {
 }
 
 func (c *Controller) Boot() error {
-	for {
-		select {
-		case <-time.After(5 * time.Second):
-		}
+	for range time.After(5 * time.Second) {
 	}
+
+	return nil
 }
