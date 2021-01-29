@@ -1,2 +1,3 @@
 # apiworker
-worker process for managing api resources asynchronously
+
+Worker process for managing api resources asynchronously.

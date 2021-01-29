@@ -1,0 +1,7 @@
+apiworker:
+  replica: 2
+image:
+  registry: "ghcr.io"
+  organization: "venturemark"
+  repository: "apiworker"
+  tag: ""
