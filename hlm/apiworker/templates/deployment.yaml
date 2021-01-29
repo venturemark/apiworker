@@ -1,0 +1,33 @@
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+spec:
+  replicas: {{ .Values.apiworker.replica }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "{{ .Release.Name }}"
+    spec:
+      containers:
+        - name: "{{ .Release.Name }}"
+          image: "{{ .Values.image.registry }}/{{ .Values.image.organization }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          args:
+            - daemon
+            - --redis-host=rfs-redis-failover.infra.svc.cluster.local
+            - --redis-kind=sentinel
+            - --redis-port=26379
+          resources:
+            limits:
+              cpu: "100m"
+              memory: "50Mi"
+            requests:
+              cpu: "100m"
+              memory: "50Mi"
+      imagePullSecrets:
+        - name: "pull-secret"
