@@ -5,6 +5,7 @@ import (
 
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/mutant"
+	"github.com/xh3b4sd/mutant/pkg/wave"
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/engine"
 	"github.com/xh3b4sd/tracer"
@@ -17,7 +18,6 @@ type ControllerConfig struct {
 	ErrCha  chan<- error
 	Handler []handler.Interface
 	Logger  logger.Interface
-	Mutant  mutant.Interface
 	Rescue  rescue.Interface
 }
 
@@ -26,8 +26,9 @@ type Controller struct {
 	errCha  chan<- error
 	handler []handler.Interface
 	logger  logger.Interface
-	mutant  mutant.Interface
 	rescue  rescue.Interface
+
+	mutant mutant.Interface
 }
 
 func NewController(config ControllerConfig) (*Controller, error) {
@@ -43,11 +44,22 @@ func NewController(config ControllerConfig) (*Controller, error) {
 	if config.Logger == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Logger must not be empty", config)
 	}
-	if config.Mutant == nil {
-		return nil, tracer.Maskf(invalidConfigError, "%T.Mutant must not be empty", config)
-	}
 	if config.Rescue == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", config)
+	}
+
+	var err error
+
+	var m mutant.Interface
+	{
+		c := wave.Config{
+			Length: 2,
+		}
+
+		m, err = wave.New(c)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
 	}
 
 	c := &Controller{
@@ -55,8 +67,9 @@ func NewController(config ControllerConfig) (*Controller, error) {
 		errCha:  config.ErrCha,
 		handler: config.Handler,
 		logger:  config.Logger,
-		mutant:  config.Mutant,
 		rescue:  config.Rescue,
+
+		mutant: m,
 	}
 
 	return c, nil

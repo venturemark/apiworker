@@ -10,8 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xh3b4sd/logger"
-	"github.com/xh3b4sd/mutant"
-	"github.com/xh3b4sd/mutant/pkg/wave"
 	"github.com/xh3b4sd/redigo"
 	"github.com/xh3b4sd/redigo/pkg/client"
 	"github.com/xh3b4sd/rescue"
@@ -87,18 +85,6 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
-	var waveMutant mutant.Interface
-	{
-		c := wave.Config{
-			Length: 2,
-		}
-
-		waveMutant, err = wave.New(c)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
 	var donCha chan struct{}
 	var errCha chan error
 	var sigCha chan os.Signal
@@ -117,7 +103,6 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 				timelineHandler,
 			},
 			Logger: r.logger,
-			Mutant: waveMutant,
 			Rescue: rescueEngine,
 		}
 
