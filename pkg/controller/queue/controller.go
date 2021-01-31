@@ -125,7 +125,12 @@ func (c *Controller) bootE() error {
 
 			for _, h := range c.handler {
 				if h.Filter(tsk) {
-					err := h.Ensure(tsk)
+					err = h.Ensure(tsk)
+					if err != nil {
+						return tracer.Mask(err)
+					}
+
+					err = c.rescue.Delete(tsk)
 					if err != nil {
 						return tracer.Mask(err)
 					}
