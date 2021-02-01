@@ -13,3 +13,11 @@ var invalidConfigError = &tracer.Error{
 func IsInvalidConfig(err error) bool {
 	return errors.Is(err, invalidConfigError)
 }
+
+var timeoutError = &tracer.Error{
+	Kind: "timeoutError",
+}
+
+func IsTimeout(err error) bool {
+	return errors.Is(err, timeoutError)
+}
