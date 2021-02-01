@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"time"
 
 	"github.com/xh3b4sd/logger"
@@ -19,6 +20,8 @@ type ControllerConfig struct {
 	Handler []handler.Interface
 	Logger  logger.Interface
 	Rescue  rescue.Interface
+
+	Interval time.Duration
 }
 
 type Controller struct {
@@ -29,6 +32,8 @@ type Controller struct {
 	rescue  rescue.Interface
 
 	mutant mutant.Interface
+
+	interval time.Duration
 }
 
 func NewController(config ControllerConfig) (*Controller, error) {
@@ -46,6 +51,10 @@ func NewController(config ControllerConfig) (*Controller, error) {
 	}
 	if config.Rescue == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", config)
+	}
+
+	if config.Interval == 0 {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Interval must not be empty", config)
 	}
 
 	var err error
@@ -70,6 +79,8 @@ func NewController(config ControllerConfig) (*Controller, error) {
 		rescue:  config.Rescue,
 
 		mutant: m,
+
+		interval: config.Interval,
 	}
 
 	return c, nil
@@ -80,9 +91,11 @@ func (c *Controller) Boot() {
 		select {
 		case <-c.donCha:
 			return
-		case <-time.After(5 * time.Second):
+		case <-time.After(c.interval):
 			err := c.bootE()
-			if err != nil {
+			if IsDialError(err) {
+				c.logger.Log(context.Background(), "level", "warning", "message", "connection refused")
+			} else if err != nil {
 				c.errCha <- tracer.Mask(err)
 			}
 		}
@@ -96,16 +109,17 @@ func (c *Controller) bootE() error {
 		if l[0] == 0 && l[1] == 0 {
 			c.mutant.Shift()
 		}
-	}
 
-	{
+		select {
+		case <-c.mutant.Check():
+			c.mutant.Reset()
+		default:
+		}
+
 		defer c.mutant.Shift()
 	}
 
-	select {
-	case <-c.mutant.Check():
-		c.mutant.Reset()
-	default:
+	{
 		l := c.mutant.Index()
 
 		if l[0] == 1 {
@@ -125,7 +139,12 @@ func (c *Controller) bootE() error {
 
 			for _, h := range c.handler {
 				if h.Filter(tsk) {
-					err := h.Ensure(tsk)
+					err = h.Ensure(tsk)
+					if err != nil {
+						return tracer.Mask(err)
+					}
+
+					err = c.rescue.Delete(tsk)
 					if err != nil {
 						return tracer.Mask(err)
 					}

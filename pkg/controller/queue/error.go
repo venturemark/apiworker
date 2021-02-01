@@ -2,6 +2,7 @@ package queue
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/xh3b4sd/tracer"
 )
@@ -12,4 +13,27 @@ var invalidConfigError = &tracer.Error{
 
 func IsInvalidConfig(err error) bool {
 	return errors.Is(err, invalidConfigError)
+}
+
+var dialError = &tracer.Error{
+	Kind: "dialError",
+}
+
+func IsDialError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	{
+		s := tracer.Cause(err).Error()
+
+		if strings.Contains(s, "dial tcp") {
+			return true
+		}
+		if strings.Contains(s, "connection refused") {
+			return true
+		}
+	}
+
+	return errors.Is(err, dialError)
 }

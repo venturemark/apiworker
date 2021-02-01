@@ -77,6 +77,8 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		c := timeline.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
+
+			Timeout: r.flag.handler.Timeout,
 		}
 
 		timelineHandler, err = timeline.NewHandler(c)
@@ -92,6 +94,10 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		donCha = make(chan struct{})
 		errCha = make(chan error, 1)
 		sigCha = make(chan os.Signal, 2)
+
+		defer close(donCha)
+		defer close(errCha)
+		defer close(sigCha)
 	}
 
 	var newController controller.Interface
@@ -104,6 +110,8 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			},
 			Logger: r.logger,
 			Rescue: rescueEngine,
+
+			Interval: r.flag.controller.Interval,
 		}
 
 		newController, err = queue.NewController(c)
@@ -121,19 +129,11 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 
 		select {
 		case err := <-errCha:
-			close(donCha)
-			defer close(errCha)
-			defer close(sigCha)
-
 			return tracer.Mask(err)
 
 		case <-sigCha:
-			close(donCha)
-			defer close(errCha)
-			defer close(sigCha)
-
 			select {
-			case <-time.After(5 * time.Second):
+			case <-time.After(r.flag.apiworker.TerminationGracePeriod):
 			case <-sigCha:
 			}
 
