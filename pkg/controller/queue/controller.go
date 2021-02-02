@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/xh3b4sd/logger"
@@ -87,6 +88,8 @@ func NewController(config ControllerConfig) (*Controller, error) {
 }
 
 func (c *Controller) Boot() {
+	c.logger.Log(context.Background(), "level", "info", "message", fmt.Sprintf("controller reconciling every %s", c.interval.String()))
+
 	for {
 		select {
 		case <-c.donCha:
