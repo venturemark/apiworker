@@ -104,16 +104,16 @@ func (c *Controller) Boot() {
 
 func (c *Controller) bootE() error {
 	{
-		l := c.mutant.Index()
-
-		if l[0] == 0 && l[1] == 0 {
-			c.mutant.Shift()
-		}
-
 		select {
 		case <-c.mutant.Check():
 			c.mutant.Reset()
 		default:
+		}
+
+		l := c.mutant.Index()
+
+		if l[0] == 0 && l[1] == 0 {
+			c.mutant.Shift()
 		}
 
 		defer c.mutant.Shift()
