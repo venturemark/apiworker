@@ -27,6 +27,9 @@ func IsDialError(err error) bool {
 	{
 		s := tracer.Cause(err).Error()
 
+		if strings.Contains(s, "EOF") {
+			return true
+		}
 		if strings.Contains(s, "dial tcp") {
 			return true
 		}
