@@ -48,6 +48,8 @@ jobs:
           sudo apt install gcc -y
 
       - name: "Install Test Dependency"
+        env:
+          GO111MODULE: "on"
         run: |
           go get github.com/venturemark/apiserver
 
@@ -56,6 +58,8 @@ jobs:
           cd ./venturemark/apiworker && go install .
 
       - name: "Install Test Dependency"
+        env:
+          GO111MODULE: "on"
         run: |
           go get github.com/venturemark/fmz
 
