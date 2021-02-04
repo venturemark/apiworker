@@ -20,6 +20,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/controller/queue"
 	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/venturemark/apiworker/pkg/handler/timeline"
+	"github.com/venturemark/apiworker/pkg/handler/update"
 )
 
 type runner struct {
@@ -87,6 +88,21 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
+	var updateHandler handler.Interface
+	{
+		c := update.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+
+			Timeout: r.flag.handler.Timeout,
+		}
+
+		updateHandler, err = update.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
 	var donCha chan struct{}
 	var errCha chan error
 	var sigCha chan os.Signal
@@ -107,6 +123,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			ErrCha: errCha,
 			Handler: []handler.Interface{
 				timelineHandler,
+				updateHandler,
 			},
 			Logger: r.logger,
 			Rescue: rescueEngine,
