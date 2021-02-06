@@ -1,3 +1,10 @@
+#
+# Do not edit. This file was generated via the "workflow" command line tool.
+# More information about the tool can be found at github.com/xh3b4sd/workflow.
+#
+#     workflow create dsmupdate -r apiworker
+#
+
 name: "dsm-update"
 
 on:
@@ -59,7 +66,7 @@ jobs:
         run: |
           if [[ $(git status --porcelain) ]]; then
             git add .
-            git commit -m 'update generated code'
+            git commit -m 'update apiworker version'
             git push
           fi
 
