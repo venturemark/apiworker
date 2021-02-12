@@ -33,7 +33,13 @@ func IsDialError(err error) bool {
 		if strings.Contains(s, "dial tcp") {
 			return true
 		}
+		if strings.Contains(s, "read tcp") {
+			return true
+		}
 		if strings.Contains(s, "connection refused") {
+			return true
+		}
+		if strings.Contains(s, "connection reset") {
 			return true
 		}
 	}
