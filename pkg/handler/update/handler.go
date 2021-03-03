@@ -65,6 +65,11 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 		return tracer.Mask(err)
 	}
 
+	err = h.deletePermission(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
 	h.logger.Log(context.Background(), "level", "info", "message", "deleted update")
 
 	return nil
@@ -174,4 +179,29 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 			return tracer.Mask(timeoutError)
 		}
 	}
+}
+
+func (h *Handler) deletePermission(tsk *task.Task) error {
+	var err error
+
+	var oid string
+	{
+		oid = tsk.Obj.Metadata[metadata.OrganizationID]
+	}
+
+	var tid string
+	{
+		tid = tsk.Obj.Metadata[metadata.TimelineID]
+	}
+
+	{
+		k := fmt.Sprintf(key.Owner, fmt.Sprintf(key.Update, oid, tid))
+
+		err = h.redigo.Simple().Delete().Element(k)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }

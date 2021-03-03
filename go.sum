@@ -224,6 +224,10 @@ github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/venturemark/apicommon v0.2.0 h1:xL6PYUbJNxNfboS3vMnhLkcCArHKp1xv9oWZS7C3Qm8=
 github.com/venturemark/apicommon v0.2.0/go.mod h1:gkaWSnImDeYGJhZWU6AW9V3AF9jzgkwWk8uAQRn8pGM=
+github.com/venturemark/apicommon v0.2.1-0.20210301144502-9ebfe542ef50 h1:jr7NbibpXX0HnJ0m85qT78P+R/P2MyhHKisE8l18bas=
+github.com/venturemark/apicommon v0.2.1-0.20210301144502-9ebfe542ef50/go.mod h1:gkaWSnImDeYGJhZWU6AW9V3AF9jzgkwWk8uAQRn8pGM=
+github.com/venturemark/apicommon v0.2.1-0.20210301152417-fe8cd5571f20 h1:Rtpirpah0WgXXhHxfG+fwswVVeb7lcSmAlrtcB1bMyE=
+github.com/venturemark/apicommon v0.2.1-0.20210301152417-fe8cd5571f20/go.mod h1:gkaWSnImDeYGJhZWU6AW9V3AF9jzgkwWk8uAQRn8pGM=
 github.com/xh3b4sd/budget v0.2.0 h1:xqnGRFwrwXW/hJnf5SCatXIVp/iHfC4ZFVYGmYZmT2Q=
 github.com/xh3b4sd/budget v0.2.0/go.mod h1:u4Ci+UNDDCeDNjEOCPYQduvWg+T4G8frIYDxs/YG/ss=
 github.com/xh3b4sd/logger v0.1.2 h1:zEE3obzyrGofvTNbT+T2U654e9XwqmGbzyktdRB1BR8=
