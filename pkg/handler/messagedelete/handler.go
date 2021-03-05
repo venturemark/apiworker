@@ -53,14 +53,14 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting update")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting message resource")
 
 	err = h.deleteElement(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted update")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted message resource")
 
 	return nil
 }

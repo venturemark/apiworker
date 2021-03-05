@@ -125,6 +125,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		c := update.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
+			Rescue: rescueEngine,
 
 			Timeout: r.flag.handler.Timeout,
 		}
