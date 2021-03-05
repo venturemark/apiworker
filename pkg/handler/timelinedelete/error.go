@@ -1,4 +1,4 @@
-package timeline
+package timelinedelete
 
 import (
 	"errors"
