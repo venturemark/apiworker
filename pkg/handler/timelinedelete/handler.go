@@ -2,14 +2,17 @@ package timelinedelete
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
+	"github.com/venturemark/apicommon/pkg/schema"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
 )
@@ -17,6 +20,7 @@ import (
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
+	Rescue rescue.Interface
 
 	Timeout time.Duration
 }
@@ -24,6 +28,7 @@ type HandlerConfig struct {
 type Handler struct {
 	logger logger.Interface
 	redigo redigo.Interface
+	rescue rescue.Interface
 
 	timeout time.Duration
 }
@@ -35,6 +40,9 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	if c.Redigo == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Redigo must not be empty", c)
 	}
+	if c.Rescue == nil {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", c)
+	}
 
 	if c.Timeout == 0 {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
@@ -43,6 +51,7 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	h := &Handler{
 		logger: c.Logger,
 		redigo: c.Redigo,
+		rescue: c.Rescue,
 
 		timeout: c.Timeout,
 	}
@@ -53,19 +62,19 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting timeline")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting timeline resource")
 
-	err = h.deleteElement(tsk)
+	err = h.deleteTimeline(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	err = h.deleteKeys(tsk)
+	err = h.deleteUpdate(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted timeline")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted timeline resource")
 
 	return nil
 }
@@ -79,7 +88,7 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-func (h *Handler) deleteElement(tsk *task.Task) error {
+func (h *Handler) deleteTimeline(tsk *task.Task) error {
 	var err error
 
 	var tid float64
@@ -108,9 +117,7 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 	return nil
 }
 
-func (h *Handler) deleteKeys(tsk *task.Task) error {
-	var err error
-
+func (h *Handler) deleteUpdate(tsk *task.Task) error {
 	var vid string
 	{
 		vid = tsk.Obj.Metadata[metadata.VentureID]
@@ -121,47 +128,40 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 		tid = tsk.Obj.Metadata[metadata.TimelineID]
 	}
 
-	var don chan struct{}
-	var erc chan error
-	var res chan string
+	var upd []*schema.Update
 	{
-		don = make(chan struct{}, 1)
-		erc = make(chan error, 1)
-		res = make(chan string, 1)
-	}
-
-	go func() {
-		for k := range res {
-			err = h.redigo.Simple().Delete().Element(k)
-			if err != nil {
-				erc <- tracer.Mask(err)
-			}
-		}
-	}()
-
-	go func() {
-		defer close(don)
-		defer close(erc)
-		defer close(res)
-
-		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Update, vid, tid))
-
-		err = h.redigo.Walker().Simple(k, don, res)
+		k := fmt.Sprintf(key.Update, vid, tid)
+		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
-			erc <- tracer.Mask(err)
-		}
-	}()
-
-	{
-		select {
-		case <-don:
-			return nil
-
-		case err := <-erc:
 			return tracer.Mask(err)
+		}
 
-		case <-time.After(h.timeout):
-			return tracer.Mask(timeoutError)
+		for _, s := range str {
+			u := &schema.Update{}
+			err = json.Unmarshal([]byte(s), u)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			upd = append(upd, u)
 		}
 	}
+
+	for _, u := range upd {
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: u.Obj.Metadata,
+			},
+		}
+
+		t.Obj.Metadata[metadata.TaskAction] = "delete"
+		t.Obj.Metadata[metadata.TaskResource] = "update"
+
+		err := h.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }
