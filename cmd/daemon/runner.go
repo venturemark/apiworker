@@ -19,10 +19,10 @@ import (
 	"github.com/venturemark/apiworker/pkg/controller"
 	"github.com/venturemark/apiworker/pkg/controller/queue"
 	"github.com/venturemark/apiworker/pkg/handler"
-	"github.com/venturemark/apiworker/pkg/handler/audience"
+	"github.com/venturemark/apiworker/pkg/handler/audiencedelete"
 	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
-	"github.com/venturemark/apiworker/pkg/handler/timeline"
-	"github.com/venturemark/apiworker/pkg/handler/update"
+	"github.com/venturemark/apiworker/pkg/handler/timelinedelete"
+	"github.com/venturemark/apiworker/pkg/handler/updatedelete"
 )
 
 type runner struct {
@@ -75,16 +75,16 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
-	var audienceHandler handler.Interface
+	var audienceDeleteHandler handler.Interface
 	{
-		c := audience.HandlerConfig{
+		c := audiencedelete.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
 
 			Timeout: r.flag.handler.Timeout,
 		}
 
-		audienceHandler, err = audience.NewHandler(c)
+		audienceDeleteHandler, err = audiencedelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -105,24 +105,24 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
-	var timelineHandler handler.Interface
+	var timelineDeleteHandler handler.Interface
 	{
-		c := timeline.HandlerConfig{
+		c := timelinedelete.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
 
 			Timeout: r.flag.handler.Timeout,
 		}
 
-		timelineHandler, err = timeline.NewHandler(c)
+		timelineDeleteHandler, err = timelinedelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var updateHandler handler.Interface
+	var updateDeleteHandler handler.Interface
 	{
-		c := update.HandlerConfig{
+		c := updatedelete.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
@@ -130,7 +130,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Timeout: r.flag.handler.Timeout,
 		}
 
-		updateHandler, err = update.NewHandler(c)
+		updateDeleteHandler, err = updatedelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -155,10 +155,10 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			DonCha: donCha,
 			ErrCha: errCha,
 			Handler: []handler.Interface{
-				audienceHandler,
+				audienceDeleteHandler,
 				messageDeleteHandler,
-				timelineHandler,
-				updateHandler,
+				timelineDeleteHandler,
+				updateDeleteHandler,
 			},
 			Logger: r.logger,
 			Rescue: rescueEngine,
