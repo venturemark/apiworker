@@ -7,6 +7,15 @@ import (
 	"github.com/xh3b4sd/tracer"
 )
 
+var incompleteExecutionError = &tracer.Error{
+	Kind: "incompleteExecutionError",
+	Desc: "This error indicates that the execution of a task could not be completed successfully. Tasks should be rescheduled after incomplete execution in order to finish them accordingly.",
+}
+
+func IsIncompleteExecution(err error) bool {
+	return errors.Is(err, incompleteExecutionError)
+}
+
 var invalidConfigError = &tracer.Error{
 	Kind: "invalidConfigError",
 }

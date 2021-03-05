@@ -143,7 +143,14 @@ func (c *Controller) bootE() error {
 			for _, h := range c.handler {
 				if h.Filter(tsk) {
 					err = h.Ensure(tsk)
-					if err != nil {
+					if IsIncompleteExecution(err) {
+						// Upon incomplete execution we just move on to the next
+						// handler and eventually to the next task. The
+						// unfinished task will time out and be rescheduled,
+						// causing another worker process to pick it up
+						// eventually at a later point in time.
+						continue
+					} else if err != nil {
 						return tracer.Mask(err)
 					}
 
