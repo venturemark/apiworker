@@ -85,11 +85,6 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		}
 	}
 
-	var oid string
-	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
-	}
-
 	var tid string
 	{
 		tid = tsk.Obj.Metadata[metadata.TimelineID]
@@ -100,8 +95,13 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		uid = tsk.Obj.Metadata[metadata.UpdateID]
 	}
 
+	var vid string
 	{
-		k := fmt.Sprintf(key.Message, oid, tid, uid)
+		vid = tsk.Obj.Metadata[metadata.VentureID]
+	}
+
+	{
+		k := fmt.Sprintf(key.Message, vid, tid, uid)
 		s := mid
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
