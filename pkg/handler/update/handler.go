@@ -2,14 +2,17 @@ package update
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
+	"github.com/venturemark/apicommon/pkg/schema"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
 )
@@ -17,6 +20,7 @@ import (
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
+	Rescue rescue.Interface
 
 	Timeout time.Duration
 }
@@ -24,6 +28,7 @@ type HandlerConfig struct {
 type Handler struct {
 	logger logger.Interface
 	redigo redigo.Interface
+	rescue rescue.Interface
 
 	timeout time.Duration
 }
@@ -35,6 +40,9 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	if c.Redigo == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Redigo must not be empty", c)
 	}
+	if c.Rescue == nil {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", c)
+	}
 
 	if c.Timeout == 0 {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
@@ -43,6 +51,7 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	h := &Handler{
 		logger: c.Logger,
 		redigo: c.Redigo,
+		rescue: c.Rescue,
 
 		timeout: c.Timeout,
 	}
@@ -77,6 +86,44 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	}
 
 	return metadata.Contains(tsk.Obj.Metadata, met)
+}
+
+func (h *Handler) createTask(k string) error {
+	var mes []*schema.Message
+	{
+		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		for _, s := range str {
+			m := &schema.Message{}
+			err = json.Unmarshal([]byte(s), m)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			mes = append(mes, m)
+		}
+	}
+
+	for _, m := range mes {
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: m.Obj.Metadata,
+			},
+		}
+
+		t.Obj.Metadata[metadata.TaskAction] = "delete"
+		t.Obj.Metadata[metadata.TaskResource] = "message"
+
+		err := h.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) deleteElement(tsk *task.Task) error {
@@ -142,7 +189,7 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 
 	go func() {
 		for k := range res {
-			err = h.redigo.Simple().Delete().Element(k)
+			err = h.createTask(k)
 			if err != nil {
 				erc <- tracer.Mask(err)
 			}

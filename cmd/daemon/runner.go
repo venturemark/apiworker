@@ -20,6 +20,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/controller/queue"
 	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/venturemark/apiworker/pkg/handler/audience"
+	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
 	"github.com/venturemark/apiworker/pkg/handler/timeline"
 	"github.com/venturemark/apiworker/pkg/handler/update"
 )
@@ -89,6 +90,21 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
+	var messageDeleteHandler handler.Interface
+	{
+		c := messagedelete.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+
+			Timeout: r.flag.handler.Timeout,
+		}
+
+		messageDeleteHandler, err = messagedelete.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
 	var timelineHandler handler.Interface
 	{
 		c := timeline.HandlerConfig{
@@ -139,6 +155,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			ErrCha: errCha,
 			Handler: []handler.Interface{
 				audienceHandler,
+				messageDeleteHandler,
 				timelineHandler,
 				updateHandler,
 			},
