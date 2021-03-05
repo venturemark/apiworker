@@ -144,7 +144,7 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 		defer close(erc)
 		defer close(res)
 
-		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Update, vid, tid))
+		k := fmt.Sprintf(key.Update, vid, tid)
 
 		err = h.redigo.Walker().Simple(k, don, res)
 		if err != nil {
