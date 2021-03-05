@@ -129,11 +129,6 @@ func (h *Handler) createTask(k string) error {
 func (h *Handler) deleteElement(tsk *task.Task) error {
 	var err error
 
-	var oid string
-	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
-	}
-
 	var tid string
 	{
 		tid = tsk.Obj.Metadata[metadata.TimelineID]
@@ -147,8 +142,13 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		}
 	}
 
+	var vid string
 	{
-		k := fmt.Sprintf(key.Update, oid, tid)
+		vid = tsk.Obj.Metadata[metadata.VentureID]
+	}
+
+	{
+		k := fmt.Sprintf(key.Update, vid, tid)
 		s := uid
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
@@ -163,9 +163,9 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 func (h *Handler) deleteKeys(tsk *task.Task) error {
 	var err error
 
-	var oid string
+	var vid string
 	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
+		vid = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	var tid string
@@ -201,7 +201,7 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 		defer close(erc)
 		defer close(res)
 
-		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Message, oid, tid, uid))
+		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Message, vid, tid, uid))
 
 		err = h.redigo.Walker().Simple(k, don, res)
 		if err != nil {

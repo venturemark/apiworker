@@ -82,11 +82,6 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteElement(tsk *task.Task) error {
 	var err error
 
-	var oid string
-	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
-	}
-
 	var tid float64
 	{
 		tid, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.TimelineID], 64)
@@ -95,8 +90,13 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		}
 	}
 
+	var vid string
 	{
-		k := fmt.Sprintf(key.Timeline, oid)
+		vid = tsk.Obj.Metadata[metadata.VentureID]
+	}
+
+	{
+		k := fmt.Sprintf(key.Timeline, vid)
 		s := tid
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
@@ -111,9 +111,9 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 func (h *Handler) deleteKeys(tsk *task.Task) error {
 	var err error
 
-	var oid string
+	var vid string
 	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
+		vid = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	var tid string
@@ -144,7 +144,7 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 		defer close(erc)
 		defer close(res)
 
-		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Update, oid, tid))
+		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Update, vid, tid))
 
 		err = h.redigo.Walker().Simple(k, don, res)
 		if err != nil {

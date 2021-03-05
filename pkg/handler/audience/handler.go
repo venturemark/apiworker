@@ -85,13 +85,13 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		}
 	}
 
-	var oid string
+	var vid string
 	{
-		oid = tsk.Obj.Metadata[metadata.OrganizationID]
+		vid = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	{
-		k := fmt.Sprintf(key.Audience, oid)
+		k := fmt.Sprintf(key.Audience, vid)
 		s := aid
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
