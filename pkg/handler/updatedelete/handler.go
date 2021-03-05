@@ -62,19 +62,19 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting update")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting update resource")
 
-	err = h.deleteElement(tsk)
+	err = h.deleteUpdate(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	err = h.deleteKeys(tsk)
+	err = h.deleteMessage(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted update")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted update resource")
 
 	return nil
 }
@@ -88,45 +88,7 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-func (h *Handler) createTask(k string) error {
-	var mes []*schema.Message
-	{
-		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-
-		for _, s := range str {
-			m := &schema.Message{}
-			err = json.Unmarshal([]byte(s), m)
-			if err != nil {
-				return tracer.Mask(err)
-			}
-
-			mes = append(mes, m)
-		}
-	}
-
-	for _, m := range mes {
-		t := &task.Task{
-			Obj: task.TaskObj{
-				Metadata: m.Obj.Metadata,
-			},
-		}
-
-		t.Obj.Metadata[metadata.TaskAction] = "delete"
-		t.Obj.Metadata[metadata.TaskResource] = "message"
-
-		err := h.rescue.Create(t)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	return nil
-}
-
-func (h *Handler) deleteElement(tsk *task.Task) error {
+func (h *Handler) deleteUpdate(tsk *task.Task) error {
 	var err error
 
 	var tid string
@@ -160,9 +122,7 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 	return nil
 }
 
-func (h *Handler) deleteKeys(tsk *task.Task) error {
-	var err error
-
+func (h *Handler) deleteMessage(tsk *task.Task) error {
 	var vid string
 	{
 		vid = tsk.Obj.Metadata[metadata.VentureID]
@@ -178,47 +138,40 @@ func (h *Handler) deleteKeys(tsk *task.Task) error {
 		uid = tsk.Obj.Metadata[metadata.UpdateID]
 	}
 
-	var don chan struct{}
-	var erc chan error
-	var res chan string
+	var mes []*schema.Message
 	{
-		don = make(chan struct{}, 1)
-		erc = make(chan error, 1)
-		res = make(chan string, 1)
-	}
-
-	go func() {
-		for k := range res {
-			err = h.createTask(k)
-			if err != nil {
-				erc <- tracer.Mask(err)
-			}
-		}
-	}()
-
-	go func() {
-		defer close(don)
-		defer close(erc)
-		defer close(res)
-
-		k := fmt.Sprintf("%s*", fmt.Sprintf(key.Message, vid, tid, uid))
-
-		err = h.redigo.Walker().Simple(k, don, res)
+		k := fmt.Sprintf(key.Message, vid, tid, uid)
+		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
-			erc <- tracer.Mask(err)
-		}
-	}()
-
-	{
-		select {
-		case <-don:
-			return nil
-
-		case err := <-erc:
 			return tracer.Mask(err)
+		}
 
-		case <-time.After(h.timeout):
-			return tracer.Mask(timeoutError)
+		for _, s := range str {
+			m := &schema.Message{}
+			err = json.Unmarshal([]byte(s), m)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			mes = append(mes, m)
 		}
 	}
+
+	for _, m := range mes {
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: m.Obj.Metadata,
+			},
+		}
+
+		t.Obj.Metadata[metadata.TaskAction] = "delete"
+		t.Obj.Metadata[metadata.TaskResource] = "message"
+
+		err := h.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }
