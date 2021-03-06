@@ -21,6 +21,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/venturemark/apiworker/pkg/handler/audiencedelete"
 	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
+	"github.com/venturemark/apiworker/pkg/handler/roledelete"
 	"github.com/venturemark/apiworker/pkg/handler/timelinedelete"
 	"github.com/venturemark/apiworker/pkg/handler/updatedelete"
 )
@@ -80,6 +81,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		c := audiencedelete.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
+			Rescue: rescueEngine,
 
 			Timeout: r.flag.handler.Timeout,
 		}
@@ -95,11 +97,28 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		c := messagedelete.HandlerConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
+			Rescue: rescueEngine,
 
 			Timeout: r.flag.handler.Timeout,
 		}
 
 		messageDeleteHandler, err = messagedelete.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var roleDeleteHandler handler.Interface
+	{
+		c := roledelete.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.handler.Timeout,
+		}
+
+		roleDeleteHandler, err = roledelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -158,6 +177,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Handler: []handler.Interface{
 				audienceDeleteHandler,
 				messageDeleteHandler,
+				roleDeleteHandler,
 				timelineDeleteHandler,
 				updateDeleteHandler,
 			},

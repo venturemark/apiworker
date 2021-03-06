@@ -10,6 +10,7 @@ import (
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
 )
@@ -17,6 +18,7 @@ import (
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
+	Rescue rescue.Interface
 
 	Timeout time.Duration
 }
@@ -24,6 +26,7 @@ type HandlerConfig struct {
 type Handler struct {
 	logger logger.Interface
 	redigo redigo.Interface
+	rescue rescue.Interface
 
 	timeout time.Duration
 }
@@ -35,6 +38,9 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	if c.Redigo == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Redigo must not be empty", c)
 	}
+	if c.Rescue == nil {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", c)
+	}
 
 	if c.Timeout == 0 {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
@@ -43,6 +49,7 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	h := &Handler{
 		logger: c.Logger,
 		redigo: c.Redigo,
+		rescue: c.Rescue,
 
 		timeout: c.Timeout,
 	}
