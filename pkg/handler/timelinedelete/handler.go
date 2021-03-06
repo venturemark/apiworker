@@ -91,22 +91,22 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteTimeline(tsk *task.Task) error {
 	var err error
 
-	var tid float64
+	var tii float64
 	{
-		tid, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.TimelineID], 64)
+		tii, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.TimelineID], 64)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var vid string
+	var vei string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
+		vei = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	{
-		k := fmt.Sprintf(key.Timeline, vid)
-		s := tid
+		k := fmt.Sprintf(key.Timeline, vei)
+		s := tii
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
@@ -118,19 +118,19 @@ func (h *Handler) deleteTimeline(tsk *task.Task) error {
 }
 
 func (h *Handler) deleteUpdate(tsk *task.Task) error {
-	var vid string
+	var vei string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
+		vei = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
-	var tid string
+	var tii string
 	{
-		tid = tsk.Obj.Metadata[metadata.TimelineID]
+		tii = tsk.Obj.Metadata[metadata.TimelineID]
 	}
 
 	var upd []*schema.Update
 	{
-		k := fmt.Sprintf(key.Update, vid, tid)
+		k := fmt.Sprintf(key.Update, vei, tii)
 		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
 			return tracer.Mask(err)

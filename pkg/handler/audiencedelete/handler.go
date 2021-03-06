@@ -84,22 +84,17 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteElement(tsk *task.Task) error {
 	var err error
 
-	var aid float64
+	var aui float64
 	{
-		aid, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.AudienceID], 64)
+		aui, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.AudienceID], 64)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var vid string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
-	}
-
-	{
-		k := fmt.Sprintf(key.Audience, vid)
-		s := aid
+		k := fmt.Sprintf(key.Audience)
+		s := aui
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
