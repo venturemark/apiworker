@@ -10,6 +10,7 @@ import (
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
 )
@@ -17,6 +18,7 @@ import (
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
+	Rescue rescue.Interface
 
 	Timeout time.Duration
 }
@@ -24,6 +26,7 @@ type HandlerConfig struct {
 type Handler struct {
 	logger logger.Interface
 	redigo redigo.Interface
+	rescue rescue.Interface
 
 	timeout time.Duration
 }
@@ -35,6 +38,9 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	if c.Redigo == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Redigo must not be empty", c)
 	}
+	if c.Rescue == nil {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", c)
+	}
 
 	if c.Timeout == 0 {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
@@ -43,6 +49,7 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 	h := &Handler{
 		logger: c.Logger,
 		redigo: c.Redigo,
+		rescue: c.Rescue,
 
 		timeout: c.Timeout,
 	}
@@ -77,32 +84,32 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteElement(tsk *task.Task) error {
 	var err error
 
-	var mid float64
+	var mei float64
 	{
-		mid, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.MessageID], 64)
+		mei, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.MessageID], 64)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var tid string
+	var tii string
 	{
-		tid = tsk.Obj.Metadata[metadata.TimelineID]
+		tii = tsk.Obj.Metadata[metadata.TimelineID]
 	}
 
-	var uid string
+	var upi string
 	{
-		uid = tsk.Obj.Metadata[metadata.UpdateID]
+		upi = tsk.Obj.Metadata[metadata.UpdateID]
 	}
 
-	var vid string
+	var vei string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
+		vei = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	{
-		k := fmt.Sprintf(key.Message, vid, tid, uid)
-		s := mid
+		k := fmt.Sprintf(key.Message, vei, tii, upi)
+		s := mei
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {

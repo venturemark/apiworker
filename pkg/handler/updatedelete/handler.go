@@ -91,27 +91,27 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteUpdate(tsk *task.Task) error {
 	var err error
 
-	var tid string
+	var tii string
 	{
-		tid = tsk.Obj.Metadata[metadata.TimelineID]
+		tii = tsk.Obj.Metadata[metadata.TimelineID]
 	}
 
-	var uid float64
+	var upi float64
 	{
-		uid, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.UpdateID], 64)
+		upi, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.UpdateID], 64)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var vid string
+	var vei string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
+		vei = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
 	{
-		k := fmt.Sprintf(key.Update, vid, tid)
-		s := uid
+		k := fmt.Sprintf(key.Update, vei, tii)
+		s := upi
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
@@ -123,24 +123,24 @@ func (h *Handler) deleteUpdate(tsk *task.Task) error {
 }
 
 func (h *Handler) deleteMessage(tsk *task.Task) error {
-	var vid string
+	var vei string
 	{
-		vid = tsk.Obj.Metadata[metadata.VentureID]
+		vei = tsk.Obj.Metadata[metadata.VentureID]
 	}
 
-	var tid string
+	var tii string
 	{
-		tid = tsk.Obj.Metadata[metadata.TimelineID]
+		tii = tsk.Obj.Metadata[metadata.TimelineID]
 	}
 
-	var uid string
+	var upi string
 	{
-		uid = tsk.Obj.Metadata[metadata.UpdateID]
+		upi = tsk.Obj.Metadata[metadata.UpdateID]
 	}
 
 	var mes []*schema.Message
 	{
-		k := fmt.Sprintf(key.Message, vid, tid, uid)
+		k := fmt.Sprintf(key.Message, vei, tii, upi)
 		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
 			return tracer.Mask(err)

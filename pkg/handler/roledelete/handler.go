@@ -1,4 +1,4 @@
-package audiencedelete
+package roledelete
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/venturemark/apicommon/pkg/hash"
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
@@ -60,14 +61,14 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting audience resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting role resource")
 
 	err = h.deleteElement(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted audience resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted role resource")
 
 	return nil
 }
@@ -75,7 +76,7 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 func (h *Handler) Filter(tsk *task.Task) bool {
 	met := map[string]string{
 		metadata.TaskAction:   "delete",
-		metadata.TaskResource: "audience",
+		metadata.TaskResource: "role",
 	}
 
 	return metadata.Contains(tsk.Obj.Metadata, met)
@@ -84,17 +85,33 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteElement(tsk *task.Task) error {
 	var err error
 
-	var aui float64
+	var rei string
 	{
-		aui, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.AudienceID], 64)
+		switch tsk.Obj.Metadata[metadata.ResourceKind] {
+		case "audience":
+			rei = hash.Audience(tsk.Obj.Metadata)
+		case "message":
+			rei = hash.Message(tsk.Obj.Metadata)
+		case "timeline":
+			rei = hash.Timeline(tsk.Obj.Metadata)
+		case "update":
+			rei = hash.Update(tsk.Obj.Metadata)
+		case "venture":
+			rei = hash.Venture(tsk.Obj.Metadata)
+		}
+	}
+
+	var roi float64
+	{
+		roi, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.RoleID], 64)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
 	{
-		k := fmt.Sprintf(key.Audience)
-		s := aui
+		k := fmt.Sprintf(key.Role, rei)
+		s := roi
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
