@@ -98,6 +98,8 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 			rei = hash.Update(tsk.Obj.Metadata)
 		case "venture":
 			rei = hash.Venture(tsk.Obj.Metadata)
+		default:
+			return tracer.Mask(err)
 		}
 	}
 
