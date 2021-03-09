@@ -3,8 +3,6 @@ package timelinedelete
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
@@ -89,26 +87,16 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteTimeline(tsk *task.Task) error {
-	var err error
-
-	var tii float64
+	var tik *key.Key
 	{
-		tii, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.TimelineID], 64)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	var vei string
-	{
-		vei = tsk.Obj.Metadata[metadata.VentureID]
+		tik = key.Timeline(tsk.Obj.Metadata)
 	}
 
 	{
-		k := fmt.Sprintf(key.Timeline, vei)
-		s := tii
+		k := tik.List()
+		s := tik.ID().F()
 
-		err = h.redigo.Sorted().Delete().Score(k, s)
+		err := h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -118,19 +106,14 @@ func (h *Handler) deleteTimeline(tsk *task.Task) error {
 }
 
 func (h *Handler) deleteUpdate(tsk *task.Task) error {
-	var vei string
+	var upk *key.Key
 	{
-		vei = tsk.Obj.Metadata[metadata.VentureID]
-	}
-
-	var tii string
-	{
-		tii = tsk.Obj.Metadata[metadata.TimelineID]
+		upk = key.Update(tsk.Obj.Metadata)
 	}
 
 	var upd []*schema.Update
 	{
-		k := fmt.Sprintf(key.Update, vei, tii)
+		k := upk.List()
 		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
 			return tracer.Mask(err)

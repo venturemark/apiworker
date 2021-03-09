@@ -2,11 +2,8 @@ package roledelete
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"time"
 
-	"github.com/venturemark/apicommon/pkg/hash"
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
@@ -83,39 +80,16 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteElement(tsk *task.Task) error {
-	var err error
-
-	var rei string
+	var rok *key.Key
 	{
-		switch tsk.Obj.Metadata[metadata.ResourceKind] {
-		case "audience":
-			rei = hash.Audience(tsk.Obj.Metadata)
-		case "message":
-			rei = hash.Message(tsk.Obj.Metadata)
-		case "timeline":
-			rei = hash.Timeline(tsk.Obj.Metadata)
-		case "update":
-			rei = hash.Update(tsk.Obj.Metadata)
-		case "venture":
-			rei = hash.Venture(tsk.Obj.Metadata)
-		default:
-			return tracer.Mask(err)
-		}
-	}
-
-	var roi float64
-	{
-		roi, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.RoleID], 64)
-		if err != nil {
-			return tracer.Mask(err)
-		}
+		rok = key.Role(tsk.Obj.Metadata)
 	}
 
 	{
-		k := fmt.Sprintf(key.Role, rei)
-		s := roi
+		k := rok.List()
+		s := rok.ID().F()
 
-		err = h.redigo.Sorted().Delete().Score(k, s)
+		err := h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
