@@ -3,8 +3,6 @@ package updatedelete
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
@@ -89,31 +87,16 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteUpdate(tsk *task.Task) error {
-	var err error
-
-	var tii string
+	var upk *key.Key
 	{
-		tii = tsk.Obj.Metadata[metadata.TimelineID]
-	}
-
-	var upi float64
-	{
-		upi, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.UpdateID], 64)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	var vei string
-	{
-		vei = tsk.Obj.Metadata[metadata.VentureID]
+		upk = key.Update(tsk.Obj.Metadata)
 	}
 
 	{
-		k := fmt.Sprintf(key.Update, vei, tii)
-		s := upi
+		k := upk.List()
+		s := upk.ID().F()
 
-		err = h.redigo.Sorted().Delete().Score(k, s)
+		err := h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -123,24 +106,14 @@ func (h *Handler) deleteUpdate(tsk *task.Task) error {
 }
 
 func (h *Handler) deleteMessage(tsk *task.Task) error {
-	var vei string
+	var mek *key.Key
 	{
-		vei = tsk.Obj.Metadata[metadata.VentureID]
-	}
-
-	var tii string
-	{
-		tii = tsk.Obj.Metadata[metadata.TimelineID]
-	}
-
-	var upi string
-	{
-		upi = tsk.Obj.Metadata[metadata.UpdateID]
+		mek = key.Message(tsk.Obj.Metadata)
 	}
 
 	var mes []*schema.Message
 	{
-		k := fmt.Sprintf(key.Message, vei, tii, upi)
+		k := mek.List()
 		str, err := h.redigo.Sorted().Search().Order(k, 0, -1)
 		if err != nil {
 			return tracer.Mask(err)

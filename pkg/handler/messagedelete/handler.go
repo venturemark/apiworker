@@ -2,8 +2,6 @@ package messagedelete
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
@@ -82,36 +80,16 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteElement(tsk *task.Task) error {
-	var err error
-
-	var mei float64
+	var mek *key.Key
 	{
-		mei, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.MessageID], 64)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	var tii string
-	{
-		tii = tsk.Obj.Metadata[metadata.TimelineID]
-	}
-
-	var upi string
-	{
-		upi = tsk.Obj.Metadata[metadata.UpdateID]
-	}
-
-	var vei string
-	{
-		vei = tsk.Obj.Metadata[metadata.VentureID]
+		mek = key.Message(tsk.Obj.Metadata)
 	}
 
 	{
-		k := fmt.Sprintf(key.Message, vei, tii, upi)
-		s := mei
+		k := mek.List()
+		s := mek.ID().F()
 
-		err = h.redigo.Sorted().Delete().Score(k, s)
+		err := h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}

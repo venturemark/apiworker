@@ -2,8 +2,6 @@ package audiencedelete
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
@@ -82,21 +80,16 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteElement(tsk *task.Task) error {
-	var err error
-
-	var aui float64
+	var auk *key.Key
 	{
-		aui, err = strconv.ParseFloat(tsk.Obj.Metadata[metadata.AudienceID], 64)
-		if err != nil {
-			return tracer.Mask(err)
-		}
+		auk = key.Audience(tsk.Obj.Metadata)
 	}
 
 	{
-		k := fmt.Sprintf(key.Audience)
-		s := aui
+		k := auk.List()
+		s := auk.ID().F()
 
-		err = h.redigo.Sorted().Delete().Score(k, s)
+		err := h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
