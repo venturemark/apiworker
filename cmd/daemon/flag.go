@@ -8,15 +8,15 @@ import (
 )
 
 type flag struct {
-	apiworker struct {
+	ApiWorker struct {
 		Host                   string
 		Port                   string
 		TerminationGracePeriod time.Duration
 	}
-	controller struct {
+	Controller struct {
 		Interval time.Duration
 	}
-	handler struct {
+	Handler struct {
 		Timeout time.Duration
 	}
 	Redis struct {
@@ -27,13 +27,13 @@ type flag struct {
 }
 
 func (f *flag) Init(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&f.apiworker.Host, "apiworker-host", "", "127.0.0.1", "The host for binding the grpc apiworker to.")
-	cmd.Flags().StringVarP(&f.apiworker.Port, "apiworker-port", "", "7777", "The port for binding the grpc apiworker to.")
-	cmd.Flags().DurationVarP(&f.apiworker.TerminationGracePeriod, "apiworker-termination-grace-period", "", 5*time.Second, "The time to wait before terminating the apiworker process.")
+	cmd.Flags().StringVarP(&f.ApiWorker.Host, "apiworker-host", "", "127.0.0.1", "The host for binding the grpc apiworker to.")
+	cmd.Flags().StringVarP(&f.ApiWorker.Port, "apiworker-port", "", "7777", "The port for binding the grpc apiworker to.")
+	cmd.Flags().DurationVarP(&f.ApiWorker.TerminationGracePeriod, "apiworker-termination-grace-period", "", 5*time.Second, "The time to wait before terminating the apiworker process.")
 
-	cmd.Flags().DurationVarP(&f.controller.Interval, "controller-interval", "", 5*time.Second, "The interval of the controller to reconcile.")
+	cmd.Flags().DurationVarP(&f.Controller.Interval, "controller-interval", "", 5*time.Second, "The interval of the controller to reconcile.")
 
-	cmd.Flags().DurationVarP(&f.handler.Timeout, "handler-timeout", "", 5*time.Second, "The timeout for a handler to give up.")
+	cmd.Flags().DurationVarP(&f.Handler.Timeout, "handler-timeout", "", 5*time.Second, "The timeout for a handler to give up.")
 
 	cmd.Flags().StringVarP(&f.Redis.Host, "redis-host", "", "127.0.0.1", "The host for connecting with redis.")
 	cmd.Flags().StringVarP(&f.Redis.Kind, "redis-kind", "", "single", "The kind of redis to connect to, e.g. simple or sentinel.")
@@ -42,25 +42,25 @@ func (f *flag) Init(cmd *cobra.Command) {
 
 func (f *flag) Validate() error {
 	{
-		if f.apiworker.Host == "" {
+		if f.ApiWorker.Host == "" {
 			return tracer.Maskf(invalidFlagError, "--apiworker-host must not be empty")
 		}
-		if f.apiworker.Port == "" {
+		if f.ApiWorker.Port == "" {
 			return tracer.Maskf(invalidFlagError, "--apiworker-port must not be empty")
 		}
-		if f.apiworker.TerminationGracePeriod == 0 {
+		if f.ApiWorker.TerminationGracePeriod == 0 {
 			return tracer.Maskf(invalidFlagError, "--apiworker-termination-grace-period must not be empty")
 		}
 	}
 
 	{
-		if f.controller.Interval == 0 {
+		if f.Controller.Interval == 0 {
 			return tracer.Maskf(invalidFlagError, "--controller-interval must not be empty")
 		}
 	}
 
 	{
-		if f.handler.Timeout == 0 {
+		if f.Handler.Timeout == 0 {
 			return tracer.Maskf(invalidFlagError, "--handler-timeout must not be empty")
 		}
 	}
