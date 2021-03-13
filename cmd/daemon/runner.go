@@ -24,6 +24,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/handler/roledelete"
 	"github.com/venturemark/apiworker/pkg/handler/timelinedelete"
 	"github.com/venturemark/apiworker/pkg/handler/updatedelete"
+	"github.com/venturemark/apiworker/pkg/handler/venturedelete"
 )
 
 type runner struct {
@@ -83,7 +84,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.handler.Timeout,
+			Timeout: r.flag.Handler.Timeout,
 		}
 
 		audienceDeleteHandler, err = audiencedelete.NewHandler(c)
@@ -99,7 +100,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.handler.Timeout,
+			Timeout: r.flag.Handler.Timeout,
 		}
 
 		messageDeleteHandler, err = messagedelete.NewHandler(c)
@@ -115,7 +116,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.handler.Timeout,
+			Timeout: r.flag.Handler.Timeout,
 		}
 
 		roleDeleteHandler, err = roledelete.NewHandler(c)
@@ -131,7 +132,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.handler.Timeout,
+			Timeout: r.flag.Handler.Timeout,
 		}
 
 		timelineDeleteHandler, err = timelinedelete.NewHandler(c)
@@ -147,10 +148,26 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.handler.Timeout,
+			Timeout: r.flag.Handler.Timeout,
 		}
 
 		updateDeleteHandler, err = updatedelete.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var ventureDeleteHandler handler.Interface
+	{
+		c := venturedelete.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.Handler.Timeout,
+		}
+
+		ventureDeleteHandler, err = venturedelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -180,11 +197,12 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 				roleDeleteHandler,
 				timelineDeleteHandler,
 				updateDeleteHandler,
+				ventureDeleteHandler,
 			},
 			Logger: r.logger,
 			Rescue: rescueEngine,
 
-			Interval: r.flag.controller.Interval,
+			Interval: r.flag.Controller.Interval,
 		}
 
 		newController, err = queue.NewController(c)
@@ -206,7 +224,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 
 		case <-sigCha:
 			select {
-			case <-time.After(r.flag.apiworker.TerminationGracePeriod):
+			case <-time.After(r.flag.ApiWorker.TerminationGracePeriod):
 			case <-sigCha:
 			}
 
