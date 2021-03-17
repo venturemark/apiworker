@@ -2,10 +2,12 @@ package userdelete
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
+	"github.com/venturemark/apicommon/pkg/schema"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
 	"github.com/xh3b4sd/rescue"
@@ -60,6 +62,16 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 
 	h.logger.Log(context.Background(), "level", "info", "message", "deleting user resource")
 
+	err = h.deleteAssociation(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
+	err = h.deleteRole(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
 	err = h.deleteUser(tsk)
 	if err != nil {
 		return tracer.Mask(err)
@@ -77,6 +89,85 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	}
 
 	return metadata.Contains(tsk.Obj.Metadata, met)
+}
+
+func (h *Handler) deleteAssociation(tsk *task.Task) error {
+	var err error
+
+	var suc string
+	{
+		suc = tsk.Obj.Metadata[metadata.SubjectClaim]
+	}
+
+	var suk *key.Key
+	{
+		met := map[string]string{
+			metadata.ResourceKind: "subject",
+			metadata.SubjectID:    suc,
+		}
+
+		suk = key.Subject(met)
+	}
+
+	{
+		k := suk.Elem()
+
+		err = h.redigo.Simple().Delete().Element(k)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
+}
+
+func (h *Handler) deleteRole(tsk *task.Task) error {
+	var rok *key.Key
+	{
+		rok = key.Role(tsk.Obj.Metadata)
+	}
+
+	var usi string
+	{
+		usi = tsk.Obj.Metadata[metadata.UserID]
+	}
+
+	var rol *schema.Role
+	{
+		k := rok.List()
+		s := usi
+
+		str, err := h.redigo.Sorted().Search().Index(k, s)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		if str != "" {
+			rol = &schema.Role{}
+			err = json.Unmarshal([]byte(str), rol)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+		}
+	}
+
+	{
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: rol.Obj.Metadata,
+			},
+		}
+
+		t.Obj.Metadata[metadata.TaskAction] = "delete"
+		t.Obj.Metadata[metadata.TaskResource] = "role"
+
+		err := h.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) deleteUser(tsk *task.Task) error {
