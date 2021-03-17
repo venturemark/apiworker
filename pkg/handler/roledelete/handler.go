@@ -65,6 +65,11 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 		return tracer.Mask(err)
 	}
 
+	err = h.deleteSubject(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
 	h.logger.Log(context.Background(), "level", "info", "message", "deleted role resource")
 
 	return nil
@@ -90,6 +95,32 @@ func (h *Handler) deleteElement(tsk *task.Task) error {
 		s := rok.ID().F()
 
 		err := h.redigo.Sorted().Delete().Score(k, s)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
+}
+
+func (h *Handler) deleteSubject(tsk *task.Task) error {
+	var err error
+
+	var rok *key.Key
+	{
+		rok = key.Role(tsk.Obj.Metadata)
+	}
+
+	var suk *key.Key
+	{
+		suk = key.Subject(tsk.Obj.Metadata)
+	}
+
+	{
+		k := suk.Elem()
+		s := rok.ID().F()
+
+		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
