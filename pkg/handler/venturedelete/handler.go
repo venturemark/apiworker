@@ -62,6 +62,11 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 
 	h.logger.Log(context.Background(), "level", "info", "message", "deleting venture resource")
 
+	err = h.deleteRole(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
 	err = h.deleteTimeline(tsk)
 	if err != nil {
 		return tracer.Mask(err)
@@ -84,6 +89,24 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	}
 
 	return metadata.Contains(tsk.Obj.Metadata, met)
+}
+
+func (h *Handler) deleteRole(tsk *task.Task) error {
+	var rok *key.Key
+	{
+		rok = key.Role(tsk.Obj.Metadata)
+	}
+
+	{
+		k := rok.List()
+
+		err := h.redigo.Simple().Delete().Element(k)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) deleteTimeline(tsk *task.Task) error {
