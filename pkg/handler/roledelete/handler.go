@@ -13,16 +13,6 @@ import (
 	"github.com/xh3b4sd/tracer"
 )
 
-var (
-	resource = []string{
-		"message",
-		"timeline",
-		"update",
-		"user",
-		"venture",
-	}
-)
-
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
