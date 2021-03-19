@@ -1,4 +1,4 @@
-package roledelete
+package subjectdelete
 
 import (
 	"context"
@@ -11,6 +11,16 @@ import (
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
+)
+
+var (
+	resource = []string{
+		"message",
+		"timeline",
+		"update",
+		"user",
+		"venture",
+	}
 )
 
 type HandlerConfig struct {
@@ -58,14 +68,14 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting role resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting subject associations")
 
-	err = h.deleteRole(tsk)
+	err = h.deleteSubject(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted role resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted subject associations")
 
 	return nil
 }
@@ -140,22 +150,38 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	return false
 }
 
-func (h *Handler) deleteRole(tsk *task.Task) error {
+func (h *Handler) deleteSubject(tsk *task.Task) error {
 	var err error
 
-	var rok *key.Key
-	{
-		rok = key.Role(tsk.Obj.Metadata)
-	}
+	for _, r := range resource {
+		met := metaWithKind(tsk.Obj.Metadata, r)
 
-	{
-		k := rok.List()
+		var suk *key.Key
+		{
+			suk = key.Subject(met)
+		}
 
-		err = h.redigo.Sorted().Delete().Clean(k)
-		if err != nil {
-			return tracer.Mask(err)
+		{
+			k := suk.Elem()
+
+			err = h.redigo.Sorted().Delete().Clean(k)
+			if err != nil {
+				return tracer.Mask(err)
+			}
 		}
 	}
 
 	return nil
+}
+
+func metaWithKind(met map[string]string, kind string) map[string]string {
+	cop := map[string]string{}
+
+	for k, v := range met {
+		cop[k] = v
+	}
+
+	cop[metadata.ResourceKind] = kind
+
+	return cop
 }
