@@ -140,24 +140,27 @@ func (c *Controller) bootE() error {
 				return tracer.Mask(err)
 			}
 
+			var incomplete bool
 			for _, h := range c.handler {
 				if h.Filter(tsk) {
 					err = h.Ensure(tsk)
 					if IsIncompleteExecution(err) {
-						// Upon incomplete execution we just move on to the next
-						// handler and eventually to the next task. The
-						// unfinished task will time out and be rescheduled,
-						// causing another worker process to pick it up
-						// eventually at a later point in time.
-						continue
+						incomplete = true
 					} else if err != nil {
 						return tracer.Mask(err)
 					}
+				}
+			}
 
-					err = c.rescue.Delete(tsk)
-					if err != nil {
-						return tracer.Mask(err)
-					}
+			if incomplete {
+				// Upon incomplete task execution we just move on to the next
+				// task without deleting the current task. The unfinished task
+				// will time out and be rescheduled, causing some worker process
+				// to pick it up eventually at a later point in time.
+			} else {
+				err = c.rescue.Delete(tsk)
+				if err != nil {
+					return tracer.Mask(err)
 				}
 			}
 		}

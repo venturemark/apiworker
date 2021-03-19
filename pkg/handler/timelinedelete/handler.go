@@ -87,6 +87,8 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteTimeline(tsk *task.Task) error {
+	var err error
+
 	var tik *key.Key
 	{
 		tik = key.Timeline(tsk.Obj.Metadata)
@@ -96,7 +98,7 @@ func (h *Handler) deleteTimeline(tsk *task.Task) error {
 		k := tik.List()
 		s := tik.ID().F()
 
-		err := h.redigo.Sorted().Delete().Score(k, s)
+		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}

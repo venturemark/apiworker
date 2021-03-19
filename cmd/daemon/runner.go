@@ -21,6 +21,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
 	"github.com/venturemark/apiworker/pkg/handler/roledelete"
+	"github.com/venturemark/apiworker/pkg/handler/subjectdelete"
 	"github.com/venturemark/apiworker/pkg/handler/timelinedelete"
 	"github.com/venturemark/apiworker/pkg/handler/updatedelete"
 	"github.com/venturemark/apiworker/pkg/handler/userdelete"
@@ -104,6 +105,22 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 
 		roleDeleteHandler, err = roledelete.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var subjectDeleteHandler handler.Interface
+	{
+		c := subjectdelete.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.Handler.Timeout,
+		}
+
+		subjectDeleteHandler, err = subjectdelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -194,6 +211,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Handler: []handler.Interface{
 				messageDeleteHandler,
 				roleDeleteHandler,
+				subjectDeleteHandler,
 				timelineDeleteHandler,
 				updateDeleteHandler,
 				userDeleteHandler,
