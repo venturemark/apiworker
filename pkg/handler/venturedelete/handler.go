@@ -92,15 +92,57 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 }
 
 func (h *Handler) deleteRole(tsk *task.Task) error {
+	var err error
+
 	var rok *key.Key
 	{
 		rok = key.Role(tsk.Obj.Metadata)
 	}
 
+	var usi string
+	{
+		usi = tsk.Obj.Metadata[metadata.UserID]
+	}
+
+	var rol *schema.Role
+	{
+		k := rok.List()
+		s := usi
+
+		str, err := h.redigo.Sorted().Search().Index(k, s)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		if str != "" {
+			rol = &schema.Role{}
+			err = json.Unmarshal([]byte(str), rol)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+		}
+	}
+
+	{
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: rol.Obj.Metadata,
+			},
+		}
+
+		t.Obj.Metadata[metadata.TaskAction] = "delete"
+		t.Obj.Metadata[metadata.TaskResource] = "role"
+
+		err := h.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
 	{
 		k := rok.List()
 
-		err := h.redigo.Simple().Delete().Element(k)
+		err = h.redigo.Sorted().Delete().Clean(k)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -155,6 +197,8 @@ func (h *Handler) deleteTimeline(tsk *task.Task) error {
 }
 
 func (h *Handler) deleteVenture(tsk *task.Task) error {
+	var err error
+
 	var vek *key.Key
 	{
 		vek = key.Venture(tsk.Obj.Metadata)
@@ -163,7 +207,7 @@ func (h *Handler) deleteVenture(tsk *task.Task) error {
 	{
 		k := vek.Elem()
 
-		err := h.redigo.Simple().Delete().Element(k)
+		err = h.redigo.Sorted().Delete().Clean(k)
 		if err != nil {
 			return tracer.Mask(err)
 		}
