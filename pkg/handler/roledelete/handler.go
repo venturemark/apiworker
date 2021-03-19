@@ -60,12 +60,7 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 
 	h.logger.Log(context.Background(), "level", "info", "message", "deleting role resource")
 
-	err = h.deleteElement(tsk)
-	if err != nil {
-		return tracer.Mask(err)
-	}
-
-	err = h.deleteSubject(tsk)
+	err = h.deleteRole(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
@@ -84,26 +79,7 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-func (h *Handler) deleteElement(tsk *task.Task) error {
-	var rok *key.Key
-	{
-		rok = key.Role(tsk.Obj.Metadata)
-	}
-
-	{
-		k := rok.List()
-		s := rok.ID().F()
-
-		err := h.redigo.Sorted().Delete().Score(k, s)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	return nil
-}
-
-func (h *Handler) deleteSubject(tsk *task.Task) error {
+func (h *Handler) deleteRole(tsk *task.Task) error {
 	var err error
 
 	var rok *key.Key
@@ -111,13 +87,8 @@ func (h *Handler) deleteSubject(tsk *task.Task) error {
 		rok = key.Role(tsk.Obj.Metadata)
 	}
 
-	var suk *key.Key
 	{
-		suk = key.Subject(tsk.Obj.Metadata)
-	}
-
-	{
-		k := suk.Elem()
+		k := rok.List()
 		s := rok.ID().F()
 
 		err = h.redigo.Sorted().Delete().Score(k, s)
