@@ -123,7 +123,7 @@ func (h *Handler) deleteRole(tsk *task.Task) error {
 		}
 	}
 
-	{
+	if rol != nil {
 		t := &task.Task{
 			Obj: task.TaskObj{
 				Metadata: rol.Obj.Metadata,
