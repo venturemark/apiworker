@@ -227,8 +227,8 @@ github.com/xh3b4sd/mutant v0.1.0/go.mod h1:hmNsl2e788xdk4Y15Acvz5D2FEBSmJBuTyA0R
 github.com/xh3b4sd/random v0.2.0 h1:LTLeb4xDI9Fl8uDZtbbitTKoXidxyrh364xS7O/MthU=
 github.com/xh3b4sd/random v0.2.0/go.mod h1:cFdYMMzamKvhxgbwynAYxvNKwbFqUPI+JGfFA/8DW+c=
 github.com/xh3b4sd/redigo v0.15.0/go.mod h1:gAWZu3I5D0jcIRLuv34Wtncy6LcSMiXcipdecPKZhNg=
-github.com/xh3b4sd/redigo v0.17.0 h1:XjiDSb+mRLv1ez32MtYQkX1jyV5jtJ24F/dOtkz8CC8=
-github.com/xh3b4sd/redigo v0.17.0/go.mod h1:wWafcCjc/aYVA+PbyomS0G6Bsxgi7gEGnSFUCmkt8Rk=
+github.com/xh3b4sd/redigo v0.17.1 h1:VIM310nF7tuSCS15ccm06CBQi3HWOwq+1oj/ZK9Auy4=
+github.com/xh3b4sd/redigo v0.17.1/go.mod h1:Qw7ahf+87pLO0b5Ss8mHuWke0DuBr+eFDxRG/k+WXWA=
 github.com/xh3b4sd/rescue v0.2.1 h1:WPEz6BW2LcLIqoECeVckQor+p+I7yRYIeVy/B06rxb8=
 github.com/xh3b4sd/rescue v0.2.1/go.mod h1:lpHGsNST+77DiID6ts+YuLFOPhMoPbwdfxXYoMPn+hY=
 github.com/xh3b4sd/tracer v0.3.1/go.mod h1:ZOLvBVLrmNx3GLCL7j0vEGMuI3r5ltLFcmDjG/3nV7g=
