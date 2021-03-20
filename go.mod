@@ -9,5 +9,5 @@ require (
 	github.com/xh3b4sd/mutant v0.1.0
 	github.com/xh3b4sd/redigo v0.17.0
 	github.com/xh3b4sd/rescue v0.2.1
-	github.com/xh3b4sd/tracer v0.3.1
+	github.com/xh3b4sd/tracer v0.4.0
 )
