@@ -19,6 +19,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/controller"
 	"github.com/venturemark/apiworker/pkg/controller/queue"
 	"github.com/venturemark/apiworker/pkg/handler"
+	"github.com/venturemark/apiworker/pkg/handler/invitedelete"
 	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
 	"github.com/venturemark/apiworker/pkg/handler/roledelete"
 	"github.com/venturemark/apiworker/pkg/handler/subjectdelete"
@@ -73,6 +74,22 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 
 		rescueEngine, err = engine.New(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var inviteDeleteHandler handler.Interface
+	{
+		c := invitedelete.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.Handler.Timeout,
+		}
+
+		inviteDeleteHandler, err = invitedelete.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -209,6 +226,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			DonCha: donCha,
 			ErrCha: errCha,
 			Handler: []handler.Interface{
+				inviteDeleteHandler,
 				messageDeleteHandler,
 				roleDeleteHandler,
 				subjectDeleteHandler,
