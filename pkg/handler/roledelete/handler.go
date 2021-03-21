@@ -13,6 +13,17 @@ import (
 	"github.com/xh3b4sd/tracer"
 )
 
+var (
+	resource = []string{
+		"invite",
+		"message",
+		"timeline",
+		"update",
+		"user",
+		"venture",
+	}
+)
+
 type HandlerConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
@@ -71,65 +82,10 @@ func (h *Handler) Ensure(tsk *task.Task) error {
 }
 
 func (h *Handler) Filter(tsk *task.Task) bool {
-	{
+	for _, r := range resource {
 		met := map[string]string{
 			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "message",
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
-	}
-
-	{
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "role",
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
-	}
-
-	{
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "timeline",
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
-	}
-
-	{
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "update",
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
-	}
-
-	{
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "user",
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
-	}
-
-	{
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: "venture",
+			metadata.TaskResource: r,
 		}
 
 		if metadata.Contains(tsk.Obj.Metadata, met) {
