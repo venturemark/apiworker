@@ -1,4 +1,4 @@
-package roledelete
+package invitedelete
 
 import (
 	"context"
@@ -11,17 +11,6 @@ import (
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
-)
-
-var (
-	resource = []string{
-		"invite",
-		"message",
-		"timeline",
-		"update",
-		"user",
-		"venture",
-	}
 )
 
 type HandlerConfig struct {
@@ -69,45 +58,40 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 func (h *Handler) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleting role resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleting invite resource")
 
-	err = h.deleteRole(tsk)
+	err = h.deleteInvite(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "deleted role resource")
+	h.logger.Log(context.Background(), "level", "info", "message", "deleted invite resource")
 
 	return nil
 }
 
 func (h *Handler) Filter(tsk *task.Task) bool {
-	for _, r := range resource {
-		met := map[string]string{
-			metadata.TaskAction:   "delete",
-			metadata.TaskResource: r,
-		}
-
-		if metadata.Contains(tsk.Obj.Metadata, met) {
-			return true
-		}
+	met := map[string]string{
+		metadata.TaskAction:   "delete",
+		metadata.TaskResource: "invite",
 	}
 
-	return false
+	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-func (h *Handler) deleteRole(tsk *task.Task) error {
+func (h *Handler) deleteInvite(tsk *task.Task) error {
 	var err error
 
-	var rok *key.Key
+	var ink *key.Key
 	{
-		rok = key.Role(tsk.Obj.Metadata)
+		ink = key.Invite(tsk.Obj.Metadata)
 	}
 
 	{
-		k := rok.List()
+		k := ink.List()
+		s := ink.ID().F()
 
-		err = h.redigo.Sorted().Delete().Clean(k)
+		err = h.redigo.Sorted().Delete().Score(k, s)
 		if err != nil {
 			return tracer.Mask(err)
 		}
