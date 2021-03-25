@@ -12,6 +12,7 @@ import (
 	"github.com/xh3b4sd/rescue/pkg/engine"
 	"github.com/xh3b4sd/tracer"
 
+	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apiworker/pkg/handler"
 )
 
@@ -140,19 +141,22 @@ func (c *Controller) bootE() error {
 				return tracer.Mask(err)
 			}
 
-			var incomplete bool
+			c.logger.Log(context.Background(), "level", "info", "message", "reconciling task", "resource", tsk.Obj.Metadata[metadata.TaskResource])
+			defer c.logger.Log(context.Background(), "level", "info", "message", "reconciled task", "resource", tsk.Obj.Metadata[metadata.TaskResource])
+
+			var inc bool
 			for _, h := range c.handler {
 				if h.Filter(tsk) {
 					err = h.Ensure(tsk)
 					if IsIncompleteExecution(err) {
-						incomplete = true
+						inc = true
 					} else if err != nil {
 						return tracer.Mask(err)
 					}
 				}
 			}
 
-			if incomplete {
+			if inc {
 				// Upon incomplete task execution we just move on to the next
 				// task without deleting the current task. The unfinished task
 				// will time out and be rescheduled, causing some worker process

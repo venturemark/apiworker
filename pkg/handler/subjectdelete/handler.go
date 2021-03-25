@@ -2,9 +2,9 @@ package subjectdelete
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
@@ -99,35 +99,52 @@ func (h *Handler) Filter(tsk *task.Task) bool {
 func (h *Handler) deleteSubject(tsk *task.Task) error {
 	var err error
 
-	for _, r := range resource {
-		met := metaWithKind(tsk.Obj.Metadata, r)
+	var sui string
+	{
+		sui = tsk.Obj.Metadata[metadata.SubjectID]
+	}
 
-		var suk *key.Key
-		{
-			suk = key.Subject(met)
-		}
+	var don chan struct{}
+	var erc chan error
+	var res chan string
+	{
+		don = make(chan struct{}, 1)
+		erc = make(chan error, 1)
+		res = make(chan string, 1)
+	}
 
-		{
-			k := suk.Elem()
-
+	go func() {
+		for k := range res {
 			err = h.redigo.Sorted().Delete().Clean(k)
 			if err != nil {
-				return tracer.Mask(err)
+				erc <- tracer.Mask(err)
 			}
 		}
+	}()
+
+	go func() {
+		defer close(don)
+		defer close(erc)
+		defer close(res)
+
+		k := fmt.Sprintf("*sub:%s*", sui)
+
+		err = h.redigo.Walker().Simple(k, don, res)
+		if err != nil {
+			erc <- tracer.Mask(err)
+		}
+	}()
+
+	{
+		select {
+		case <-don:
+			return nil
+
+		case err := <-erc:
+			return tracer.Mask(err)
+
+		case <-time.After(h.timeout):
+			return tracer.Mask(timeoutError)
+		}
 	}
-
-	return nil
-}
-
-func metaWithKind(met map[string]string, kind string) map[string]string {
-	cop := map[string]string{}
-
-	for k, v := range met {
-		cop[k] = v
-	}
-
-	cop[metadata.ResourceKind] = kind
-
-	return cop
 }
