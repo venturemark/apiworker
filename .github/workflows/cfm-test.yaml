@@ -48,20 +48,16 @@ jobs:
           sudo apt install gcc -y
 
       - name: "Install Test Dependency"
-        env:
-          GO111MODULE: "on"
         run: |
-          go get -u github.com/venturemark/apiserver
+          go get -u github.com/venturemark/apiserver@$(git ls-remote git://github.com/venturemark/apiserver.git HEAD | awk '{print $1;}')
 
       - name: "Install Test Dependency"
         run: |
           cd ./venturemark/apiworker && go install .
 
       - name: "Install Test Dependency"
-        env:
-          GO111MODULE: "on"
         run: |
-          go get -u github.com/venturemark/cfm
+          go get -u github.com/venturemark/cfm@$(git ls-remote git://github.com/venturemark/cfm.git HEAD | awk '{print $1;}')
 
       - name: "Check Conformance Tests"
         env:
