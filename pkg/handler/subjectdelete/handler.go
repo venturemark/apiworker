@@ -114,6 +114,8 @@ func (h *Handler) deleteSubject(tsk *task.Task) error {
 	}
 
 	go func() {
+		defer close(don)
+
 		for k := range res {
 			err = h.redigo.Sorted().Delete().Clean(k)
 			if err != nil {
@@ -123,8 +125,6 @@ func (h *Handler) deleteSubject(tsk *task.Task) error {
 	}()
 
 	go func() {
-		defer close(don)
-		defer close(erc)
 		defer close(res)
 
 		k := fmt.Sprintf("*sub:%s*", sui)
