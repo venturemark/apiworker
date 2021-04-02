@@ -27,6 +27,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/handler/updatedelete"
 	"github.com/venturemark/apiworker/pkg/handler/userdelete"
 	"github.com/venturemark/apiworker/pkg/handler/venturedelete"
+	"github.com/venturemark/apiworker/pkg/server"
 )
 
 type runner struct {
@@ -247,8 +248,25 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
+	var newServer *server.Server
+	{
+		c := server.Config{
+			Logger: r.logger,
+
+			ErrCha:   errCha,
+			HTTPHost: r.flag.Metrics.Host,
+			HTTPPort: r.flag.Metrics.Port,
+		}
+
+		newServer, err = server.New(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
 	{
 		go newController.Boot()
+		go newServer.ListenHTTP()
 	}
 
 	{
