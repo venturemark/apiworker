@@ -19,6 +19,10 @@ type flag struct {
 	Handler struct {
 		Timeout time.Duration
 	}
+	Metrics struct {
+		Host string
+		Port string
+	}
 	Redis struct {
 		Host string
 		Kind string
@@ -34,6 +38,9 @@ func (f *flag) Init(cmd *cobra.Command) {
 	cmd.Flags().DurationVarP(&f.Controller.Interval, "controller-interval", "", 5*time.Second, "The interval of the controller to reconcile.")
 
 	cmd.Flags().DurationVarP(&f.Handler.Timeout, "handler-timeout", "", 5*time.Second, "The timeout for a handler to give up.")
+
+	cmd.Flags().StringVarP(&f.Metrics.Host, "metrics-host", "", "127.0.0.1", "The host for binding the http metrics endpoints to.")
+	cmd.Flags().StringVarP(&f.Metrics.Port, "metrics-port", "", "8000", "The port for binding the http metrics endpoints to.")
 
 	cmd.Flags().StringVarP(&f.Redis.Host, "redis-host", "", "127.0.0.1", "The host for connecting with redis.")
 	cmd.Flags().StringVarP(&f.Redis.Kind, "redis-kind", "", "single", "The kind of redis to connect to, e.g. simple or sentinel.")
@@ -62,6 +69,15 @@ func (f *flag) Validate() error {
 	{
 		if f.Handler.Timeout == 0 {
 			return tracer.Maskf(invalidFlagError, "--handler-timeout must not be empty")
+		}
+	}
+
+	{
+		if f.Metrics.Host == "" {
+			return tracer.Maskf(invalidFlagError, "--metrics-host must not be empty")
+		}
+		if f.Metrics.Port == "" {
+			return tracer.Maskf(invalidFlagError, "--metrics-port must not be empty")
 		}
 	}
 
