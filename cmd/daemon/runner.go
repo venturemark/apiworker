@@ -8,12 +8,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
 	"github.com/xh3b4sd/redigo/pkg/client"
 	"github.com/xh3b4sd/rescue"
+	"github.com/xh3b4sd/rescue/pkg/collector"
 	"github.com/xh3b4sd/rescue/pkg/engine"
+	"github.com/xh3b4sd/rescue/pkg/metric"
 	"github.com/xh3b4sd/tracer"
 
 	"github.com/venturemark/apiworker/pkg/controller"
@@ -67,10 +70,33 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
+	//************************************************************************//
+
+	var rescueMetric *metric.Collection
+	{
+		rescueMetric = metric.New()
+	}
+
+	var rescueCollector *collector.Collector
+	{
+		c := collector.Config{
+			Logger: r.logger,
+			Metric: rescueMetric,
+		}
+
+		rescueCollector, err = collector.New(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	//************************************************************************//
+
 	var rescueEngine rescue.Interface
 	{
 		c := engine.Config{
 			Logger: r.logger,
+			Metric: rescueMetric,
 			Redigo: redigoClient,
 		}
 
@@ -79,6 +105,8 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			return tracer.Mask(err)
 		}
 	}
+
+	//************************************************************************//
 
 	var inviteDeleteHandler handler.Interface
 	{
@@ -208,6 +236,8 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
+	//************************************************************************//
+
 	var donCha chan struct{}
 	var errCha chan error
 	var sigCha chan os.Signal
@@ -251,6 +281,11 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 	var newServer *server.Server
 	{
 		c := server.Config{
+			Collector: []prometheus.Collector{
+				prometheus.NewGoCollector(),
+				prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+				rescueCollector,
+			},
 			Logger: r.logger,
 
 			ErrCha:   errCha,
