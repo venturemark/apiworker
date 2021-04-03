@@ -6,13 +6,15 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/tracer"
 )
 
 type Config struct {
-	Logger logger.Interface
+	Collector []prometheus.Collector
+	Logger    logger.Interface
 
 	ErrCha   chan<- error
 	HTTPHost string
@@ -20,7 +22,8 @@ type Config struct {
 }
 
 type Server struct {
-	logger logger.Interface
+	collector []prometheus.Collector
+	logger    logger.Interface
 
 	errCha   chan<- error
 	httpHost string
@@ -28,6 +31,9 @@ type Server struct {
 }
 
 func New(config Config) (*Server, error) {
+	if len(config.Collector) == 0 {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Collector must not be empty", config)
+	}
 	if config.Logger == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Logger must not be empty", config)
 	}
@@ -43,7 +49,8 @@ func New(config Config) (*Server, error) {
 	}
 
 	s := &Server{
-		logger: config.Logger,
+		collector: config.Collector,
+		logger:    config.Logger,
 
 		errCha:   config.ErrCha,
 		httpHost: config.HTTPHost,
@@ -55,9 +62,16 @@ func New(config Config) (*Server, error) {
 
 func (s *Server) ListenHTTP() {
 	a := net.JoinHostPort(s.httpHost, s.httpPort)
+	r := prometheus.NewPedanticRegistry()
 
 	{
-		http.Handle("/metrics", promhttp.Handler())
+		for _, c := range s.collector {
+			r.MustRegister(c)
+		}
+	}
+
+	{
+		http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
 	}
 
 	s.logger.Log(context.Background(), "level", "info", "message", fmt.Sprintf("http server running at %s", a))
