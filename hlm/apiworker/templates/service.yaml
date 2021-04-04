@@ -1,0 +1,25 @@
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "{{ .Release.Name }}"
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+  annotations:
+    prometheus.io/port: "8000"
+    prometheus.io/scrape: "true"
+spec:
+  # Defining a service type ClusterIP with an IP value of None creates a
+  # headless service which does not load balance. Instead it just provides a
+  # list of entrypoint IPs, which are the IPs of the pods in the targeted
+  # deployment.
+  #
+  #     https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+  #
+  type: "ClusterIP"
+  clusterIP: "None"
+  selector:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+  ports:
+    - name: "http-metrics"
+      port: { { .Values.metrics.port } }
