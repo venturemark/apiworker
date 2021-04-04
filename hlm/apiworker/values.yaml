@@ -5,3 +5,5 @@ image:
   organization: "venturemark"
   repository: "apiworker"
   tag: ""
+metrics:
+  port: 8000
