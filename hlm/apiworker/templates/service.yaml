@@ -22,4 +22,4 @@ spec:
     app.kubernetes.io/name: "{{ .Release.Name }}"
   ports:
     - name: "http-metrics"
-      port: "{{ .Values.metrics.port }}"
+      port: {{ .Values.metrics.port }}
