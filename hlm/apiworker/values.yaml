@@ -6,4 +6,4 @@ image:
   repository: "apiworker"
   tag: ""
 metrics:
-  port: 8000
+  port: 15020
