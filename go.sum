@@ -356,8 +356,8 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
-github.com/venturemark/apicommon v0.8.0 h1:jf+qi4zFaCAw9YOp3pLDqVl8WmRNCUjLRKTOjUgVsjA=
-github.com/venturemark/apicommon v0.8.0/go.mod h1:gzSSDL7OuV9rBfACv6QhW/1ahg+DPm64DurlG5HGsGY=
+github.com/venturemark/apicommon v0.8.1 h1:Hv8rmISgnMOjpJzYaEwH/LyJbVvXxr+3AgnybuVZTAc=
+github.com/venturemark/apicommon v0.8.1/go.mod h1:gzSSDL7OuV9rBfACv6QhW/1ahg+DPm64DurlG5HGsGY=
 github.com/xh3b4sd/budget v0.2.1 h1:wn1s+MpnJPfusLN28jH7cH2v4SeP0ldmmwU6H6FRARI=
 github.com/xh3b4sd/budget v0.2.1/go.mod h1:Qq5YihqFy2k1Q3TX+QhlPQYlLtA98ZxNwkWiX72mlAU=
 github.com/xh3b4sd/logger v0.2.0 h1:IAMhu5QB/HHucgX/tiNRl7/Of7Gq3bSZ4NBCtnFIh48=
