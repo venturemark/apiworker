@@ -235,6 +235,22 @@ func (c *Controller) weekly(o func() error) error {
 		}
 	}
 
+	// Since we try to create a unique task here we need to lock the process in
+	// a distributed environment.
+	{
+		err := c.redigo.Locker().Acquire()
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		defer func() {
+			err := c.redigo.Locker().Release()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}()
+	}
+
 	var k string
 	var v string
 	{
