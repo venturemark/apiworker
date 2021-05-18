@@ -24,6 +24,7 @@ import (
 	"github.com/venturemark/apiworker/pkg/handler"
 	"github.com/venturemark/apiworker/pkg/handler/invitedelete"
 	"github.com/venturemark/apiworker/pkg/handler/messagedelete"
+	"github.com/venturemark/apiworker/pkg/handler/remindercreate"
 	"github.com/venturemark/apiworker/pkg/handler/roledelete"
 	"github.com/venturemark/apiworker/pkg/handler/subjectdelete"
 	"github.com/venturemark/apiworker/pkg/handler/timelinedelete"
@@ -135,6 +136,22 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 
 		messageDeleteHandler, err = messagedelete.NewHandler(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var reminderCreateHandler handler.Interface
+	{
+		c := remindercreate.HandlerConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.Handler.Timeout,
+		}
+
+		reminderCreateHandler, err = remindercreate.NewHandler(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -259,6 +276,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Handler: []handler.Interface{
 				inviteDeleteHandler,
 				messageDeleteHandler,
+				reminderCreateHandler,
 				roleDeleteHandler,
 				subjectDeleteHandler,
 				timelineDeleteHandler,
@@ -267,6 +285,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 				ventureDeleteHandler,
 			},
 			Logger: r.logger,
+			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
 			Interval: r.flag.Controller.Interval,
