@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/mutant"
 	"github.com/xh3b4sd/mutant/pkg/wave"
+	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/redigo/pkg/simple"
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/engine"
+	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
 
-	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apiworker/pkg/handler"
 )
 
@@ -21,6 +24,7 @@ type ControllerConfig struct {
 	ErrCha  chan<- error
 	Handler []handler.Interface
 	Logger  logger.Interface
+	Redigo  redigo.Interface
 	Rescue  rescue.Interface
 
 	Interval time.Duration
@@ -31,6 +35,7 @@ type Controller struct {
 	errCha  chan<- error
 	handler []handler.Interface
 	logger  logger.Interface
+	redigo  redigo.Interface
 	rescue  rescue.Interface
 
 	mutant mutant.Interface
@@ -50,6 +55,9 @@ func NewController(config ControllerConfig) (*Controller, error) {
 	}
 	if config.Logger == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Logger must not be empty", config)
+	}
+	if config.Redigo == nil {
+		return nil, tracer.Maskf(invalidConfigError, "%T.Redigo must not be empty", config)
 	}
 	if config.Rescue == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", config)
@@ -78,6 +86,7 @@ func NewController(config ControllerConfig) (*Controller, error) {
 		errCha:  config.ErrCha,
 		handler: config.Handler,
 		logger:  config.Logger,
+		redigo:  config.Redigo,
 		rescue:  config.Rescue,
 
 		mutant: m,
@@ -89,6 +98,8 @@ func NewController(config ControllerConfig) (*Controller, error) {
 }
 
 func (c *Controller) Boot() {
+	var err error
+
 	c.logger.Log(context.Background(), "level", "info", "message", fmt.Sprintf("controller reconciling every %s", c.interval.String()))
 
 	for {
@@ -96,7 +107,14 @@ func (c *Controller) Boot() {
 		case <-c.donCha:
 			return
 		case <-time.After(c.interval):
-			err := c.bootE()
+			err = c.createTasks()
+			if IsDialError(err) {
+				c.logger.Log(context.Background(), "level", "warning", "message", "connection refused")
+			} else if err != nil {
+				c.errCha <- tracer.Mask(err)
+			}
+
+			err = c.searchTasks()
 			if IsDialError(err) {
 				c.logger.Log(context.Background(), "level", "warning", "message", "connection refused")
 			} else if err != nil {
@@ -106,7 +124,37 @@ func (c *Controller) Boot() {
 	}
 }
 
-func (c *Controller) bootE() error {
+func (c *Controller) createTasks() error {
+	o := func() error {
+		t := &task.Task{
+			Obj: task.TaskObj{
+				Metadata: map[string]string{
+					metadata.TaskAction:   "create",
+					metadata.TaskInterval: "weekly",
+					metadata.TaskResource: "reminder",
+				},
+			},
+		}
+
+		err := c.rescue.Create(t)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		return nil
+	}
+
+	{
+		err := c.weekly(o)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) searchTasks() error {
 	{
 		select {
 		case <-c.mutant.Check():
@@ -167,6 +215,104 @@ func (c *Controller) bootE() error {
 					return tracer.Mask(err)
 				}
 			}
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) weekly(o func() error) error {
+	var t time.Time
+	{
+		t = time.Now().UTC()
+		m := t.Minute()
+
+		if t.Weekday() != time.Monday {
+			return nil
+		}
+
+		if m != 0 {
+			return nil
+		}
+	}
+
+	var k string
+	var v string
+	{
+		k = "apiworker.venturemark.co:rem:wee"
+		v = fmt.Sprintf("%02d.%02d.%d", t.Day(), t.Month(), t.Year())
+	}
+
+	{
+		val, err := c.redigo.Simple().Search().Value(k)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+
+		if v == val {
+			return nil
+		}
+	}
+
+	{
+		err := o()
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	{
+		err := c.redigo.Simple().Create().Element(k, v)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) minute(o func() error) error {
+	var t time.Time
+	{
+		t = time.Now().UTC()
+		s := t.Second()
+
+		if s >= 10 {
+			return nil
+		}
+	}
+
+	var k string
+	var v string
+	{
+		k = "apiworker.venturemark.co:rem:wee"
+		v = fmt.Sprintf("%d:%d %d.%d.%d", t.Hour(), t.Second(), t.Day(), t.Month(), t.Year())
+	}
+
+	{
+		val, err := c.redigo.Simple().Search().Value(k)
+		if simple.IsNotFound(err) {
+			// fall through
+		} else if err != nil {
+			return tracer.Mask(err)
+		} else {
+			if v == val {
+				return nil
+			}
+		}
+	}
+
+	{
+		err := o()
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	{
+		err := c.redigo.Simple().Create().Element(k, v)
+		if err != nil {
+			return tracer.Mask(err)
 		}
 	}
 
