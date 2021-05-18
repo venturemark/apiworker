@@ -10,7 +10,6 @@ import (
 	"github.com/xh3b4sd/mutant"
 	"github.com/xh3b4sd/mutant/pkg/wave"
 	"github.com/xh3b4sd/redigo"
-	"github.com/xh3b4sd/redigo/pkg/simple"
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/engine"
 	"github.com/xh3b4sd/rescue/pkg/task"
@@ -251,54 +250,6 @@ func (c *Controller) weekly(o func() error) error {
 
 		if v == val {
 			return nil
-		}
-	}
-
-	{
-		err := o()
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	{
-		err := c.redigo.Simple().Create().Element(k, v)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	return nil
-}
-
-func (c *Controller) minute(o func() error) error {
-	var t time.Time
-	{
-		t = time.Now().UTC()
-		s := t.Second()
-
-		if s >= 10 {
-			return nil
-		}
-	}
-
-	var k string
-	var v string
-	{
-		k = "apiworker.venturemark.co:rem:wee"
-		v = fmt.Sprintf("%d:%d %d.%d.%d", t.Hour(), t.Second(), t.Day(), t.Month(), t.Year())
-	}
-
-	{
-		val, err := c.redigo.Simple().Search().Value(k)
-		if simple.IsNotFound(err) {
-			// fall through
-		} else if err != nil {
-			return tracer.Mask(err)
-		} else {
-			if v == val {
-				return nil
-			}
 		}
 	}
 
