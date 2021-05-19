@@ -141,9 +141,9 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		}
 	}
 
-	var reminderCreateHandler handler.Interface
+	var reminderCreateUser handler.Interface
 	{
-		c := remindercreate.HandlerConfig{
+		c := remindercreate.UserConfig{
 			Logger: r.logger,
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
@@ -151,7 +151,23 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Timeout: r.flag.Handler.Timeout,
 		}
 
-		reminderCreateHandler, err = remindercreate.NewHandler(c)
+		reminderCreateUser, err = remindercreate.NewUser(c)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var reminderCreateWeekly handler.Interface
+	{
+		c := remindercreate.WeeklyConfig{
+			Logger: r.logger,
+			Redigo: redigoClient,
+			Rescue: rescueEngine,
+
+			Timeout: r.flag.Handler.Timeout,
+		}
+
+		reminderCreateWeekly, err = remindercreate.NewWeekly(c)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -276,7 +292,8 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Handler: []handler.Interface{
 				inviteDeleteHandler,
 				messageDeleteHandler,
-				reminderCreateHandler,
+				reminderCreateUser,
+				reminderCreateWeekly,
 				roleDeleteHandler,
 				subjectDeleteHandler,
 				timelineDeleteHandler,

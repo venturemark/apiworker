@@ -12,7 +12,7 @@ import (
 	"github.com/xh3b4sd/tracer"
 )
 
-type HandlerConfig struct {
+type UserConfig struct {
 	Logger logger.Interface
 	Redigo redigo.Interface
 	Rescue rescue.Interface
@@ -20,7 +20,7 @@ type HandlerConfig struct {
 	Timeout time.Duration
 }
 
-type Handler struct {
+type User struct {
 	logger logger.Interface
 	redigo redigo.Interface
 	rescue rescue.Interface
@@ -28,7 +28,7 @@ type Handler struct {
 	timeout time.Duration
 }
 
-func NewHandler(c HandlerConfig) (*Handler, error) {
+func NewUser(c UserConfig) (*User, error) {
 	if c.Logger == nil {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Logger must not be empty", c)
 	}
@@ -43,7 +43,7 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
 	}
 
-	h := &Handler{
+	u := &User{
 		logger: c.Logger,
 		redigo: c.Redigo,
 		rescue: c.Rescue,
@@ -51,35 +51,34 @@ func NewHandler(c HandlerConfig) (*Handler, error) {
 		timeout: c.Timeout,
 	}
 
-	return h, nil
+	return u, nil
 }
 
-func (h *Handler) Ensure(tsk *task.Task) error {
+func (u *User) Ensure(tsk *task.Task) error {
 	var err error
 
-	h.logger.Log(context.Background(), "level", "info", "message", "creating reminder")
+	u.logger.Log(context.Background(), "level", "info", "message", "creating user reminder")
 
-	err = h.createReminder(tsk)
+	err = u.createReminder(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	h.logger.Log(context.Background(), "level", "info", "message", "created reminder")
+	u.logger.Log(context.Background(), "level", "info", "message", "created user reminder")
 
 	return nil
 }
 
-func (h *Handler) Filter(tsk *task.Task) bool {
+func (u *User) Filter(tsk *task.Task) bool {
 	met := map[string]string{
 		metadata.TaskAction:   "create",
-		metadata.TaskInterval: "weekly",
+		metadata.TaskAudience: "user",
 		metadata.TaskResource: "reminder",
 	}
 
 	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-// TODO
-func (h *Handler) createReminder(tsk *task.Task) error {
+func (u *User) createReminder(tsk *task.Task) error {
 	return nil
 }
