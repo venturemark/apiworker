@@ -2,11 +2,19 @@ package remindercreate
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
+	"github.com/venturemark/apicommon/pkg/schema"
+	"github.com/venturemark/apigengo/pkg/pbf/venture"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/redigo/pkg/simple"
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
@@ -80,5 +88,189 @@ func (u *User) Filter(tsk *task.Task) bool {
 }
 
 func (u *User) createReminder(tsk *task.Task) error {
+	var err error
+
+	var sui string
+	{
+		sui = tsk.Obj.Metadata[metadata.SubjectID]
+	}
+
+	var ven []*schema.Venture
+	{
+		ven, err = u.searchVentures(sui)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	fmt.Printf("%#v\n", ven)
+
 	return nil
+}
+
+func (u *User) searchVentures(sui string) ([]*schema.Venture, error) {
+	var err error
+
+	var req *venture.SearchI
+	{
+		req = &venture.SearchI{
+			Obj: []*venture.SearchI_Obj{
+				{
+					Metadata: map[string]string{
+						metadata.SubjectID: sui,
+					},
+				},
+			},
+		}
+	}
+
+	var str []string
+	{
+		str, err = u.searchSub(req)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+	}
+
+	var res []*schema.Venture
+	{
+		for _, s := range str {
+			ven := &schema.Venture{}
+			err := json.Unmarshal([]byte(s), ven)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			res = append(res, ven)
+		}
+	}
+
+	return res, nil
+}
+
+func (u *User) searchRol(req *venture.SearchI) ([]*schema.Role, error) {
+	var err error
+
+	{
+		req.Obj[0].Metadata[metadata.ResourceKind] = "venture"
+	}
+
+	var suk *key.Key
+	{
+		suk = key.Subject(req.Obj[0].Metadata)
+	}
+
+	var str []string
+	{
+		k := suk.Elem()
+
+		str, err = u.redigo.Sorted().Search().Order(k, 0, -1)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+	}
+
+	var rol []*schema.Role
+	{
+		for _, k := range str {
+			rei, roi := split(k)
+
+			val, err := u.redigo.Sorted().Search().Score(rei, roi, roi)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			if len(val) == 0 {
+				continue
+			}
+
+			r := &schema.Role{}
+			err = json.Unmarshal([]byte(val[0]), r)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			rol = append(rol, r)
+		}
+	}
+
+	return rol, nil
+}
+
+func (u *User) searchSub(req *venture.SearchI) ([]string, error) {
+	var err error
+
+	var rol []*schema.Role
+	{
+		rol, err = u.searchRol(req)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+	}
+
+	var str []string
+	{
+		for _, r := range rol {
+			req := &venture.SearchI{
+				Obj: []*venture.SearchI_Obj{
+					{
+						Metadata: r.Obj.Metadata,
+					},
+				},
+			}
+
+			lis, err := u.searchVen(req)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			str = append(str, lis...)
+		}
+	}
+
+	return str, nil
+}
+
+func (u *User) searchVen(req *venture.SearchI) ([]string, error) {
+	var vek *key.Key
+	{
+		vek = key.Venture(req.Obj[0].Metadata)
+	}
+
+	var str []string
+	{
+		k := vek.Elem()
+
+		s, err := u.redigo.Simple().Search().Value(k)
+		if simple.IsNotFound(err) {
+			// fall through
+		} else if err != nil {
+			return nil, tracer.Mask(err)
+		} else {
+			str = append(str, s)
+		}
+	}
+
+	return str, nil
+}
+
+func split(s string) (string, float64) {
+	var err error
+
+	i := strings.LastIndex(s, ":")
+
+	var rei string
+	{
+		rei = s[:i]
+	}
+
+	var roi float64
+	{
+		roi, err = strconv.ParseFloat(s[i+1:], 64)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return rei, roi
 }
