@@ -91,14 +91,9 @@ func (u *User) Filter(tsk *task.Task) bool {
 func (u *User) createReminder(tsk *task.Task) error {
 	var err error
 
-	var sui string
-	{
-		sui = tsk.Obj.Metadata[metadata.SubjectID]
-	}
-
 	var ven []*schema.Venture
 	{
-		ven, err = u.searchVentures(sui)
+		ven, err = u.searchVentures(tsk)
 		if err != nil {
 			return tracer.Mask(err)
 		}
@@ -107,12 +102,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 	var tim []*schema.Timeline
 	{
 		for _, v := range ven {
-			var vei string
-			{
-				vei = v.Obj.Metadata[metadata.VentureID]
-			}
-
-			t, err := u.searchTimelines(vei)
+			t, err := u.searchTimelines(v)
 			if err != nil {
 				return tracer.Mask(err)
 			}
@@ -121,13 +111,30 @@ func (u *User) createReminder(tsk *task.Task) error {
 		}
 	}
 
-	fmt.Printf("%#v\n", tim)
+	var upd []*schema.Update
+	{
+		for _, t := range tim {
+			u, err := u.searchUpdates(t)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			upd = append(upd, u...)
+		}
+	}
+
+	fmt.Printf("%#v\n", upd)
 
 	return nil
 }
 
-func (u *User) searchTimelines(vei string) ([]*schema.Timeline, error) {
+func (u *User) searchTimelines(ven *schema.Venture) ([]*schema.Timeline, error) {
 	var err error
+
+	var vei string
+	{
+		vei = ven.Obj.Metadata[metadata.VentureID]
+	}
 
 	var req *timeline.SearchI
 	{
@@ -166,8 +173,47 @@ func (u *User) searchTimelines(vei string) ([]*schema.Timeline, error) {
 	return tim, nil
 }
 
-func (u *User) searchVentures(sui string) ([]*schema.Venture, error) {
+func (u *User) searchUpdates(tim *schema.Timeline) ([]*schema.Update, error) {
 	var err error
+
+	var upk *key.Key
+	{
+		upk = key.Update(tim.Obj.Metadata)
+	}
+
+	var str []string
+	{
+		k := upk.List()
+
+		str, err = u.redigo.Sorted().Search().Order(k, 0, -1)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+	}
+
+	var upd []*schema.Update
+	{
+		for _, s := range str {
+			u := &schema.Update{}
+			err := json.Unmarshal([]byte(s), u)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			upd = append(upd, u)
+		}
+	}
+
+	return upd, nil
+}
+
+func (u *User) searchVentures(tsk *task.Task) ([]*schema.Venture, error) {
+	var err error
+
+	var sui string
+	{
+		sui = tsk.Obj.Metadata[metadata.SubjectID]
+	}
 
 	var req *venture.SearchI
 	{
