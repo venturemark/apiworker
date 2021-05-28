@@ -3,6 +3,7 @@ package remindercreate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +120,8 @@ func (u *User) createReminder(tsk *task.Task) error {
 			tim = append(tim, t...)
 		}
 	}
+
+	fmt.Printf("%#v\n", tim)
 
 	return nil
 }
