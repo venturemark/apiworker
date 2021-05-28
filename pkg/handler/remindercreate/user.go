@@ -11,6 +11,7 @@ import (
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apicommon/pkg/schema"
+	"github.com/venturemark/apigengo/pkg/pbf/timeline"
 	"github.com/venturemark/apigengo/pkg/pbf/venture"
 	"github.com/xh3b4sd/logger"
 	"github.com/xh3b4sd/redigo"
@@ -103,9 +104,66 @@ func (u *User) createReminder(tsk *task.Task) error {
 		}
 	}
 
-	fmt.Printf("%#v\n", ven)
+	var tim []*schema.Timeline
+	{
+		for _, v := range ven {
+			var vei string
+			{
+				vei = v.Obj.Metadata[metadata.VentureID]
+			}
+
+			t, err := u.searchTimelines(vei)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			tim = append(tim, t...)
+		}
+	}
+
+	fmt.Printf("%#v\n", tim)
 
 	return nil
+}
+
+func (u *User) searchTimelines(vei string) ([]*schema.Timeline, error) {
+	var err error
+
+	var req *timeline.SearchI
+	{
+		req = &timeline.SearchI{
+			Obj: []*timeline.SearchI_Obj{
+				{
+					Metadata: map[string]string{
+						metadata.VentureID: vei,
+					},
+				},
+			},
+		}
+	}
+
+	var str []string
+	{
+		str, err = u.searchTim(req)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+	}
+
+	var tim []*schema.Timeline
+	{
+		for _, s := range str {
+			t := &schema.Timeline{}
+			err := json.Unmarshal([]byte(s), t)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			tim = append(tim, t)
+		}
+	}
+
+	return tim, nil
 }
 
 func (u *User) searchVentures(sui string) ([]*schema.Venture, error) {
@@ -225,6 +283,27 @@ func (u *User) searchSub(req *venture.SearchI) ([]string, error) {
 			}
 
 			str = append(str, lis...)
+		}
+	}
+
+	return str, nil
+}
+
+func (u *User) searchTim(req *timeline.SearchI) ([]string, error) {
+	var err error
+
+	var tik *key.Key
+	{
+		tik = key.Timeline(req.Obj[0].Metadata)
+	}
+
+	var str []string
+	{
+		k := tik.List()
+
+		str, err = u.redigo.Sorted().Search().Order(k, 0, -1)
+		if err != nil {
+			return nil, tracer.Mask(err)
 		}
 	}
 
