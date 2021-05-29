@@ -119,7 +119,22 @@ func (u *User) createReminder(tsk *task.Task) error {
 				return tracer.Mask(err)
 			}
 
-			upd = append(upd, u...)
+			for _, o := range u {
+				uid := o.Obj.Metadata[metadata.UpdateID]
+				dur := 168 * time.Hour
+
+				if !within(uid, dur) {
+					continue
+				}
+
+				upd = append(upd, o)
+			}
+		}
+
+		// In case there have not been any updates posted within the past week,
+		// we do not intend to send reminders.
+		if len(upd) == 0 {
+			return nil
 		}
 	}
 
@@ -398,4 +413,22 @@ func split(s string) (string, float64) {
 	}
 
 	return rei, roi
+}
+
+func within(uid string, dur time.Duration) bool {
+	{
+		i, err := strconv.ParseInt(uid, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+
+		now := time.Now().UTC()
+		uni := time.Unix(i, 0).Add(dur)
+
+		if now.After(uni) {
+			return false
+		}
+	}
+
+	return true
 }
