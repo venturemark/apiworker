@@ -148,7 +148,9 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 			Redigo: redigoClient,
 			Rescue: rescueEngine,
 
-			Timeout: r.flag.Handler.Timeout,
+			PostmarkTokenAccount: r.flag.Postmark.Token.Account,
+			PostmarkTokenServer:  r.flag.Postmark.Token.Server,
+			Timeout:              r.flag.Handler.Timeout,
 		}
 
 		reminderCreateUser, err = remindercreate.NewUser(c)

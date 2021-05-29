@@ -26,6 +26,17 @@ spec:
             - --redis-host=rfs-redis-failover.infra.svc.cluster.local
             - --redis-kind=sentinel
             - --redis-port=26379
+          env:
+            - name: "APIWORKER_POSTMARK_TOKEN_ACCOUNT"
+              valueFrom:
+                secretKeyRef:
+                  name: apiworker
+                key: "postmark.token.account"
+            - name: APIWORKER_POSTMARK_TOKEN_SERVER
+              valueFrom:
+                secretKeyRef:
+                  name: apiworker
+                key: "postmark.token.server"
           resources:
             limits:
               cpu: "100m"

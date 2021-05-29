@@ -26,7 +26,9 @@ type UserConfig struct {
 	Redigo redigo.Interface
 	Rescue rescue.Interface
 
-	Timeout time.Duration
+	PostmarkTokenAccount string
+	PostmarkTokenServer  string
+	Timeout              time.Duration
 }
 
 type User struct {
@@ -34,7 +36,9 @@ type User struct {
 	redigo redigo.Interface
 	rescue rescue.Interface
 
-	timeout time.Duration
+	postmarkTokenAccount string
+	postmarkTokenServer  string
+	timeout              time.Duration
 }
 
 func NewUser(c UserConfig) (*User, error) {
@@ -48,6 +52,12 @@ func NewUser(c UserConfig) (*User, error) {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Rescue must not be empty", c)
 	}
 
+	if c.PostmarkTokenAccount == "" {
+		return nil, tracer.Maskf(invalidConfigError, "%T.PostmarkTokenAccount must not be empty", c)
+	}
+	if c.PostmarkTokenServer == "" {
+		return nil, tracer.Maskf(invalidConfigError, "%T.PostmarkTokenServer must not be empty", c)
+	}
 	if c.Timeout == 0 {
 		return nil, tracer.Maskf(invalidConfigError, "%T.Timeout must not be empty", c)
 	}
@@ -57,7 +67,9 @@ func NewUser(c UserConfig) (*User, error) {
 		redigo: c.Redigo,
 		rescue: c.Rescue,
 
-		timeout: c.Timeout,
+		postmarkTokenAccount: c.PostmarkTokenAccount,
+		postmarkTokenServer:  c.PostmarkTokenServer,
+		timeout:              c.Timeout,
 	}
 
 	return u, nil
@@ -66,14 +78,19 @@ func NewUser(c UserConfig) (*User, error) {
 func (u *User) Ensure(tsk *task.Task) error {
 	var err error
 
-	u.logger.Log(context.Background(), "level", "info", "message", "creating user reminder")
+	var uid string
+	{
+		uid = tsk.Obj.Metadata[metadata.UserID]
+	}
+
+	u.logger.Log(context.Background(), "level", "info", "message", "creating user reminder", "user", uid)
 
 	err = u.createReminder(tsk)
 	if err != nil {
 		return tracer.Mask(err)
 	}
 
-	u.logger.Log(context.Background(), "level", "info", "message", "created user reminder")
+	u.logger.Log(context.Background(), "level", "info", "message", "created user reminder", "user", uid)
 
 	return nil
 }
@@ -227,7 +244,7 @@ func (u *User) searchVentures(tsk *task.Task) ([]*schema.Venture, error) {
 
 	var sui string
 	{
-		sui = tsk.Obj.Metadata[metadata.SubjectID]
+		sui = tsk.Obj.Metadata[metadata.UserID]
 	}
 
 	var req *venture.SearchI
