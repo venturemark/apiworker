@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,6 +24,12 @@ type flag struct {
 		Host string
 		Port string
 	}
+	Postmark struct {
+		Token struct {
+			Account string
+			Server  string
+		}
+	}
 	Redis struct {
 		Host string
 		Kind string
@@ -41,6 +48,9 @@ func (f *flag) Init(cmd *cobra.Command) {
 
 	cmd.Flags().StringVarP(&f.Metrics.Host, "metrics-host", "", "127.0.0.1", "The host for binding the http metrics endpoints to.")
 	cmd.Flags().StringVarP(&f.Metrics.Port, "metrics-port", "", "8000", "The port for binding the http metrics endpoints to.")
+
+	cmd.Flags().StringVarP(&f.Postmark.Token.Account, "postmark-token-account", "", os.Getenv("APIWORKER_POSTMARK_TOKEN_ACCOUNT"), "The postmark account token used to send emails.")
+	cmd.Flags().StringVarP(&f.Postmark.Token.Server, "postmark-token-server", "", os.Getenv("APIWORKER_POSTMARK_TOKEN_SERVER"), "The postmark server token used to send emails.")
 
 	cmd.Flags().StringVarP(&f.Redis.Host, "redis-host", "", "127.0.0.1", "The host for connecting with redis.")
 	cmd.Flags().StringVarP(&f.Redis.Kind, "redis-kind", "", "single", "The kind of redis to connect to, e.g. simple or sentinel.")
@@ -78,6 +88,15 @@ func (f *flag) Validate() error {
 		}
 		if f.Metrics.Port == "" {
 			return tracer.Maskf(invalidFlagError, "--metrics-port must not be empty")
+		}
+	}
+
+	{
+		if f.Postmark.Token.Account == "" {
+			return tracer.Maskf(invalidFlagError, "--postmark-token-account must not be empty")
+		}
+		if f.Postmark.Token.Server == "" {
+			return tracer.Maskf(invalidFlagError, "--postmark-token-server must not be empty")
 		}
 	}
 
