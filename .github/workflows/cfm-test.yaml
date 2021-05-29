@@ -62,6 +62,8 @@ jobs:
       - name: "Check Conformance Tests"
         env:
           CGO_ENABLED: "1"
+          APIWORKER_POSTMARK_TOKEN_ACCOUNT: "foo"
+          APIWORKER_POSTMARK_TOKEN_SERVER: "foo"
         run: |
           apiserver daemon --metrics-port 8081 &
           apiworker daemon --metrics-port 8082 &
