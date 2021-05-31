@@ -31,12 +31,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: apiworker
-                key: "postmark.token.account"
+                  key: "postmark.token.account"
             - name: APIWORKER_POSTMARK_TOKEN_SERVER
               valueFrom:
                 secretKeyRef:
                   name: apiworker
-                key: "postmark.token.server"
+                  key: "postmark.token.server"
           resources:
             limits:
               cpu: "100m"
