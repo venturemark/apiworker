@@ -10,6 +10,7 @@ import (
 	"github.com/xh3b4sd/mutant"
 	"github.com/xh3b4sd/mutant/pkg/wave"
 	"github.com/xh3b4sd/redigo"
+	"github.com/xh3b4sd/redigo/pkg/simple"
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/engine"
 	"github.com/xh3b4sd/rescue/pkg/task"
@@ -260,7 +261,7 @@ func (c *Controller) weekly(o func() error) error {
 
 	{
 		val, err := c.redigo.Simple().Search().Value(k)
-		if err != nil {
+		if err != nil && !simple.IsNotFound(err) {
 			return tracer.Mask(err)
 		}
 

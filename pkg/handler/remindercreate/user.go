@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/keighl/postmark"
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apicommon/pkg/schema"
@@ -128,7 +129,8 @@ func (u *User) createReminder(tsk *task.Task) error {
 		}
 	}
 
-	var upd []*schema.Update
+	var timelineUpdateCounts []timelineSummary
+
 	{
 		for _, t := range tim {
 			u, err := u.searchUpdates(t)
@@ -136,6 +138,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 				return tracer.Mask(err)
 			}
 
+			var upd []*schema.Update
 			for _, o := range u {
 				uid := o.Obj.Metadata[metadata.UpdateID]
 				dur := 168 * time.Hour
@@ -146,16 +149,49 @@ func (u *User) createReminder(tsk *task.Task) error {
 
 				upd = append(upd, o)
 			}
-		}
 
-		// In case there have not been any updates posted within the past week,
-		// we do not intend to send reminders.
-		if len(upd) == 0 {
-			return nil
+			if len(upd) == 0 {
+				continue
+			}
+
+			timelineUpdateCounts = append(timelineUpdateCounts, timelineSummary{
+				Count: len(upd),
+				Name:  t.Obj.Property.Name,
+			})
 		}
 	}
 
-	fmt.Printf("%#v\n", upd)
+	// In case there have not been any updates posted within the past week,
+	// we do not intend to send reminders.
+	if len(timelineUpdateCounts) == 0 {
+		return nil
+	}
+
+	uid := tsk.Obj.Metadata[metadata.UserID]
+	user, err := u.searchUser(uid)
+	if err != nil {
+		return err
+	}
+	firstName := strings.Split(user.Obj.Property.Name, " ")[0]
+
+	client := postmark.NewClient(u.postmarkTokenServer, u.postmarkTokenAccount)
+	email := postmark.TemplatedEmail{
+		TemplateAlias: "new-updates-notification",
+		TemplateModel: map[string]interface{}{
+			"name":      firstName,
+			"timelines": timelineUpdateCounts,
+		},
+		From:       "notifications@venturemark.co",
+		To:         user.Obj.Property.Mail,
+		TrackOpens: true,
+	}
+
+	response, err := client.SendTemplatedEmail(email)
+	if err != nil {
+		return err
+	} else if response.Message != "OK" {
+		return tracer.Mask(mailDeliveryError)
+	}
 
 	return nil
 }
@@ -409,6 +445,25 @@ func (u *User) searchVen(req *venture.SearchI) ([]string, error) {
 	}
 
 	return str, nil
+}
+
+func (u *User) searchUser(uid string) (*schema.User, error) {
+	val, err := u.redigo.Simple().Search().Value(fmt.Sprintf("use:%s", uid))
+	if err != nil {
+		return nil, tracer.Mask(err)
+	}
+
+	if len(val) == 0 {
+		return nil, nil
+	}
+
+	r := schema.User{}
+	err = json.Unmarshal([]byte(val), &r)
+	if err != nil {
+		return nil, tracer.Mask(err)
+	}
+
+	return &r, nil
 }
 
 func split(s string) (string, float64) {
