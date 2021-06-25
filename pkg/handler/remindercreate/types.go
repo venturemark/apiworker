@@ -1,6 +1,6 @@
 package remindercreate
 
-type timelineSummary struct {
-	Count int    `json:"count"`
-	Name  string `json:"name"`
+type templateVenture struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
 }

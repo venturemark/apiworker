@@ -107,90 +107,106 @@ func (u *User) Filter(tsk *task.Task) bool {
 }
 
 func (u *User) createReminder(tsk *task.Task) error {
-	var err error
-
-	var ven []*schema.Venture
-	{
-		ven, err = u.searchVentures(tsk)
-		if err != nil {
-			return tracer.Mask(err)
-		}
-	}
-
-	var tim []*schema.Timeline
-	{
-		for _, v := range ven {
-			t, err := u.searchTimelines(v)
-			if err != nil {
-				return tracer.Mask(err)
-			}
-
-			tim = append(tim, t...)
-		}
-	}
-
-	var timelineUpdateCounts []timelineSummary
-
-	{
-		for _, t := range tim {
-			u, err := u.searchUpdates(t)
-			if err != nil {
-				return tracer.Mask(err)
-			}
-
-			var upd []*schema.Update
-			for _, o := range u {
-				uid := o.Obj.Metadata[metadata.UpdateID]
-				dur := 168 * time.Hour
-
-				if !within(uid, dur) {
-					continue
-				}
-
-				upd = append(upd, o)
-			}
-
-			if len(upd) == 0 {
-				continue
-			}
-
-			timelineUpdateCounts = append(timelineUpdateCounts, timelineSummary{
-				Count: len(upd),
-				Name:  t.Obj.Property.Name,
-			})
-		}
-	}
-
-	// In case there have not been any updates posted within the past week,
-	// we do not intend to send reminders.
-	if len(timelineUpdateCounts) == 0 {
-		return nil
-	}
-
 	uid := tsk.Obj.Metadata[metadata.UserID]
 	user, err := u.searchUser(uid)
 	if err != nil {
 		return err
 	}
-	firstName := strings.Split(user.Obj.Property.Name, " ")[0]
+	userEmail := user.Obj.Property.Mail
+	emailFeatureEnabled := user.Obj.Metadata["feature.venturemark.co/weekly-update"] == "true"
+
+	if !emailFeatureEnabled {
+		u.logger.Log(context.Background(), "level", "info", "message", "user has not opted in to weekly update emails, skipping", "user", uid)
+		return nil
+	} else if userEmail == "" {
+		u.logger.Log(context.Background(), "level", "info", "message", "user has no email address stored, skipping", "user", uid)
+		return nil
+	}
+
+	var ventures []*schema.Venture
+	{
+		ventures, err = u.searchVentures(tsk)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+	}
+
+	var timelines []*schema.Timeline
+	{
+		for _, currentVenture := range ventures {
+			ventureTimelines, err := u.searchTimelines(currentVenture)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			timelines = append(timelines, ventureTimelines...)
+		}
+	}
+
+	var totalRecentUpdates int
+	ventureUpdates := map[string]struct{}{}
+
+	{
+		for _, currentTimeline := range timelines {
+			timelineUpdates, err := u.searchUpdates(currentTimeline)
+			if err != nil {
+				return tracer.Mask(err)
+			}
+
+			for _, currentUpdate := range timelineUpdates {
+				updateID := currentUpdate.Obj.Metadata[metadata.UpdateID]
+				dur := 24 * 7 * time.Hour
+
+				if !within(updateID, dur) {
+					continue
+				}
+
+				ventureID := currentTimeline.Obj.Metadata[metadata.VentureID]
+				ventureUpdates[ventureID] = struct{}{}
+				totalRecentUpdates++
+			}
+		}
+	}
+
+	// In case there have not been any updates posted within the past week,
+	// we do not intend to send reminders.
+	if totalRecentUpdates == 0 {
+		return nil
+	}
+
+	var templateVentures []templateVenture
+	for _, currentVenture := range ventures {
+		ventureID := currentVenture.Obj.Metadata[metadata.VentureID]
+		if _, ok := ventureUpdates[ventureID]; ok {
+			name := currentVenture.Obj.Property.Name
+			slug := strings.ReplaceAll(strings.ToLower(name), " ", "")
+			templateVentures = append(templateVentures, templateVenture{
+				Slug: slug,
+				Name: name,
+			})
+		}
+	}
 
 	client := postmark.NewClient(u.postmarkTokenServer, u.postmarkTokenAccount)
-	email := postmark.TemplatedEmail{
+	templateEmail := postmark.TemplatedEmail{
 		TemplateAlias: "new-updates-notification",
 		TemplateModel: map[string]interface{}{
-			"name":      firstName,
-			"timelines": timelineUpdateCounts,
+			// Mustache templates aren't powerful enough to choose is or are depending on the count in an array. Instead we
+			// pass the string value in as a template variable.
+			"singular": totalRecentUpdates == 1,
+			"count":    totalRecentUpdates,
+			"ventures": templateVentures,
 		},
 		From:       "notifications@venturemark.co",
-		To:         user.Obj.Property.Mail,
+		To:         userEmail,
 		TrackOpens: true,
 	}
 
-	response, err := client.SendTemplatedEmail(email)
+	response, err := client.SendTemplatedEmail(templateEmail)
 	if err != nil {
 		return err
 	} else if response.Message != "OK" {
-		return tracer.Mask(mailDeliveryError)
+		return tracer.Maskf(mailDeliveryError, response.Message)
 	}
 
 	return nil
