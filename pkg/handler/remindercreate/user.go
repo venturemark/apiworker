@@ -112,9 +112,9 @@ func (u *User) createReminder(tsk *task.Task) error {
 	if err != nil {
 		return err
 	}
+
 	userEmail := user.Obj.Property.Mail
 	emailFeatureEnabled := user.Obj.Metadata["feature.venturemark.co/weekly-update"] == "true"
-
 	if !emailFeatureEnabled {
 		u.logger.Log(context.Background(), "level", "info", "message", "user has not opted in to weekly update emails, skipping", "user", uid)
 		return nil
