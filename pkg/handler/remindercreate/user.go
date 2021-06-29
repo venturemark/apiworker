@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/keighl/postmark"
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apicommon/pkg/schema"
@@ -106,56 +107,107 @@ func (u *User) Filter(tsk *task.Task) bool {
 }
 
 func (u *User) createReminder(tsk *task.Task) error {
-	var err error
+	uid := tsk.Obj.Metadata[metadata.UserID]
+	user, err := u.searchUser(uid)
+	if err != nil {
+		return err
+	}
 
-	var ven []*schema.Venture
+	userEmail := user.Obj.Property.Mail
+	emailFeatureEnabled := user.Obj.Metadata["feature.venturemark.co/weekly-update"] == "true"
+	if !emailFeatureEnabled {
+		u.logger.Log(context.Background(), "level", "info", "message", "user has not opted in to weekly update emails, skipping", "user", uid)
+		return nil
+	} else if userEmail == "" {
+		u.logger.Log(context.Background(), "level", "info", "message", "user has no email address stored, skipping", "user", uid)
+		return nil
+	}
+
+	var ventures []*schema.Venture
 	{
-		ven, err = u.searchVentures(tsk)
+		ventures, err = u.searchVentures(tsk)
 		if err != nil {
 			return tracer.Mask(err)
 		}
 	}
 
-	var tim []*schema.Timeline
+	var timelines []*schema.Timeline
 	{
-		for _, v := range ven {
-			t, err := u.searchTimelines(v)
+		for _, currentVenture := range ventures {
+			ventureTimelines, err := u.searchTimelines(currentVenture)
 			if err != nil {
 				return tracer.Mask(err)
 			}
 
-			tim = append(tim, t...)
+			timelines = append(timelines, ventureTimelines...)
 		}
 	}
 
-	var upd []*schema.Update
+	var totalRecentUpdates int
+	ventureUpdates := map[string]struct{}{}
+
 	{
-		for _, t := range tim {
-			u, err := u.searchUpdates(t)
+		for _, currentTimeline := range timelines {
+			timelineUpdates, err := u.searchUpdates(currentTimeline)
 			if err != nil {
 				return tracer.Mask(err)
 			}
 
-			for _, o := range u {
-				uid := o.Obj.Metadata[metadata.UpdateID]
-				dur := 168 * time.Hour
+			for _, currentUpdate := range timelineUpdates {
+				updateID := currentUpdate.Obj.Metadata[metadata.UpdateID]
+				dur := 24 /* * 7 */ * time.Hour
 
-				if !within(uid, dur) {
+				if !within(updateID, dur) {
 					continue
 				}
 
-				upd = append(upd, o)
+				ventureID := currentTimeline.Obj.Metadata[metadata.VentureID]
+				ventureUpdates[ventureID] = struct{}{}
+				totalRecentUpdates++
 			}
-		}
-
-		// In case there have not been any updates posted within the past week,
-		// we do not intend to send reminders.
-		if len(upd) == 0 {
-			return nil
 		}
 	}
 
-	fmt.Printf("%#v\n", upd)
+	// In case there have not been any updates posted within the past week,
+	// we do not intend to send reminders.
+	if totalRecentUpdates == 0 {
+		return nil
+	}
+
+	var templateVentures []templateVenture
+	for _, currentVenture := range ventures {
+		ventureID := currentVenture.Obj.Metadata[metadata.VentureID]
+		if _, ok := ventureUpdates[ventureID]; ok {
+			name := currentVenture.Obj.Property.Name
+			slug := strings.ReplaceAll(strings.ToLower(name), " ", "")
+			templateVentures = append(templateVentures, templateVenture{
+				Slug: slug,
+				Name: name,
+			})
+		}
+	}
+
+	client := postmark.NewClient(u.postmarkTokenServer, u.postmarkTokenAccount)
+	templateEmail := postmark.TemplatedEmail{
+		TemplateAlias: "new-updates-notification",
+		TemplateModel: map[string]interface{}{
+			// Mustache templates aren't powerful enough to choose is or are depending on the count in an array. Instead we
+			// pass the string value in as a template variable.
+			"singular": totalRecentUpdates == 1,
+			"count":    totalRecentUpdates,
+			"ventures": templateVentures,
+		},
+		From:       "notifications@venturemark.co",
+		To:         userEmail,
+		TrackOpens: true,
+	}
+
+	response, err := client.SendTemplatedEmail(templateEmail)
+	if err != nil {
+		return err
+	} else if response.Message != "OK" {
+		return tracer.Maskf(mailDeliveryError, response.Message)
+	}
 
 	return nil
 }
@@ -409,6 +461,25 @@ func (u *User) searchVen(req *venture.SearchI) ([]string, error) {
 	}
 
 	return str, nil
+}
+
+func (u *User) searchUser(uid string) (*schema.User, error) {
+	val, err := u.redigo.Simple().Search().Value(fmt.Sprintf("use:%s", uid))
+	if err != nil {
+		return nil, tracer.Mask(err)
+	}
+
+	if len(val) == 0 {
+		return nil, nil
+	}
+
+	r := schema.User{}
+	err = json.Unmarshal([]byte(val), &r)
+	if err != nil {
+		return nil, tracer.Mask(err)
+	}
+
+	return &r, nil
 }
 
 func split(s string) (string, float64) {
