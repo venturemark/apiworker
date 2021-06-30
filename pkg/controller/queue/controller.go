@@ -235,7 +235,7 @@ func (c *Controller) weekly(o func() error) error {
 			}
 		*/
 
-		if m != 0 || h != 23 {
+		if m != 35 || h != 0 {
 			return nil
 		}
 	}
