@@ -114,11 +114,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 	}
 
 	userEmail := user.Obj.Property.Mail
-	emailFeatureEnabled := user.Obj.Metadata["feature.venturemark.co/weekly-update"] == "true"
-	if !emailFeatureEnabled {
-		u.logger.Log(context.Background(), "level", "info", "message", "user has not opted in to weekly update emails, skipping", "user", uid)
-		return nil
-	} else if userEmail == "" {
+	if userEmail == "" {
 		u.logger.Log(context.Background(), "level", "info", "message", "user has no email address stored, skipping", "user", uid)
 		return nil
 	}
@@ -155,7 +151,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 
 			for _, currentUpdate := range timelineUpdates {
 				updateID := currentUpdate.Obj.Metadata[metadata.UpdateID]
-				dur := 24 /* * 7 */ * time.Hour
+				dur := 24 * time.Hour
 
 				if !within(updateID, dur) {
 					continue

@@ -225,15 +225,7 @@ func (c *Controller) weekly(o func() error) error {
 	var t time.Time
 	{
 		t = time.Now().UTC()
-		m := t.Minute()
-
-		/*
-			if t.Weekday() != time.Monday {
-				return nil
-			}
-		*/
-
-		if m != 15 {
+		if t.Hour() != 13 || t.Minute() != 30 {
 			return nil
 		}
 	}
