@@ -205,7 +205,8 @@ func (u *User) createReminder(tsk *task.Task) error {
 	response, err := client.SendTemplatedEmail(templateEmail)
 	if err != nil {
 		return err
-	} else if response.Message != "OK" {
+	} else if response.Message != "OK" && response.ErrorCode != 406 {
+		// Error if not OK except on "Inactive recipient" response
 		return tracer.Maskf(mailDeliveryError, response.Message)
 	}
 
@@ -510,10 +511,9 @@ func within(uid string, dur time.Duration) bool {
 			panic(err)
 		}
 
-		now := time.Now().UTC()
-		uni := time.Unix(i, 0).Add(dur)
+		uni := time.Unix(i/1e9, 0).Add(dur)
 
-		if now.After(uni) {
+		if time.Now().After(uni) {
 			return false
 		}
 	}
