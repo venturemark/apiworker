@@ -3,12 +3,14 @@ package remindercreate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/keighl/postmark"
+	"github.com/nleeper/goment"
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apicommon/pkg/schema"
@@ -106,92 +108,152 @@ func (u *User) Filter(tsk *task.Task) bool {
 	return metadata.Contains(tsk.Obj.Metadata, met)
 }
 
-func (u *User) createReminder(tsk *task.Task) error {
-	uid := tsk.Obj.Metadata[metadata.UserID]
-	user, err := u.searchUser(uid)
-	if err != nil {
-		return err
-	}
-
-	userEmail := user.Obj.Property.Mail
-	if userEmail == "" {
-		u.logger.Log(context.Background(), "level", "info", "message", "user has no email address stored, skipping", "user", uid)
-		return nil
-	}
-
+func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 	var ventures []*schema.Venture
 	{
+		var err error
 		ventures, err = u.searchVentures(tsk)
 		if err != nil {
-			return tracer.Mask(err)
+			return nil, tracer.Mask(err)
 		}
 	}
 
+	users := map[string]*schema.User{}
 	var timelines []*schema.Timeline
-	{
-		for _, currentVenture := range ventures {
-			ventureTimelines, err := u.searchTimelines(currentVenture)
-			if err != nil {
-				return tracer.Mask(err)
-			}
 
-			timelines = append(timelines, ventureTimelines...)
-		}
-	}
-
-	var totalRecentUpdates int
-	ventureUpdates := map[string]struct{}{}
-
-	{
-		for _, currentTimeline := range timelines {
-			timelineUpdates, err := u.searchUpdates(currentTimeline)
-			if err != nil {
-				return tracer.Mask(err)
-			}
-
-			for _, currentUpdate := range timelineUpdates {
-				updateID := currentUpdate.Obj.Metadata[metadata.UpdateID]
-				dur := 24 * time.Hour
-
-				if !within(updateID, dur) {
-					continue
-				}
-
-				ventureID := currentTimeline.Obj.Metadata[metadata.VentureID]
-				ventureUpdates[ventureID] = struct{}{}
-				totalRecentUpdates++
-			}
-		}
-	}
-
-	// In case there have not been any updates posted within the past week,
-	// we do not intend to send reminders.
-	if totalRecentUpdates == 0 {
-		return nil
-	}
-
-	var templateVentures []templateVenture
 	for _, currentVenture := range ventures {
-		ventureID := currentVenture.Obj.Metadata[metadata.VentureID]
-		if _, ok := ventureUpdates[ventureID]; ok {
-			name := currentVenture.Obj.Property.Name
-			slug := strings.ReplaceAll(strings.ToLower(name), " ", "")
-			templateVentures = append(templateVentures, templateVenture{
-				Slug: slug,
-				Name: name,
+		ventureTimelines, err := u.searchTimelines(currentVenture)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+
+		timelines = append(timelines, ventureTimelines...)
+	}
+
+	ventureUpdates := map[string]map[int64]*templateUpdate{}
+	var templateUpdates []*templateUpdate
+
+	for _, currentTimeline := range timelines {
+		ventureID := currentTimeline.Obj.Metadata[metadata.VentureID]
+
+		timelineName := currentTimeline.Obj.Property.Name
+		timelineSlug := strings.ReplaceAll(strings.ToLower(timelineName), " ", "")
+
+		var timelineVenture templateVenture
+		for _, currentVenture := range ventures {
+			if currentVenture.Obj.Metadata[metadata.VentureID] != ventureID {
+				continue
+			}
+
+			ventureName := currentVenture.Obj.Property.Name
+			ventureSlug := strings.ReplaceAll(strings.ToLower(ventureName), " ", "")
+			venturePath := fmt.Sprintf("/%s", ventureSlug)
+			timelineVenture = templateVenture{
+				Name: ventureName,
+				Path: venturePath,
+			}
+		}
+
+		if timelineVenture.Name == "" {
+			return nil, tracer.Mask(errors.New("venture not found"))
+		}
+
+		timelinePath := fmt.Sprintf("%s/%s", timelineVenture.Path, timelineSlug)
+
+		timelineUpdates, err := u.searchUpdates(currentTimeline)
+		if err != nil {
+			return nil, tracer.Mask(err)
+		}
+
+		for _, currentUpdate := range timelineUpdates {
+			updateID := currentUpdate.Obj.Metadata[metadata.UpdateID]
+			dur := 24 * time.Hour
+
+			if !within(updateID, dur) {
+				continue
+			}
+
+			updateIDNumeric, err := strconv.ParseInt(updateID, 10, 64)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+			updateIDRounded := updateIDNumeric / 1e9 // truncate from nanoseconds to seconds
+
+			if _, ok := ventureUpdates[ventureID]; !ok {
+				ventureUpdates[ventureID] = map[int64]*templateUpdate{}
+			} else if existing, ok := ventureUpdates[ventureID][updateIDRounded]; ok {
+				existing.Timelines = append(existing.Timelines, templateTimeline{
+					Name: timelineName,
+					Path: timelinePath,
+				})
+				continue // Already counted this update for this venture.
+			}
+
+			updateTime, err := goment.Unix(updateIDRounded)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
+			authorID := currentUpdate.Obj.Metadata[metadata.UserID]
+			if _, ok := users[authorID]; !ok {
+				users[authorID], err = u.searchUser(authorID)
+				if err != nil {
+					return nil, tracer.Mask(err)
+				}
+			}
+			authorName := users[authorID].Obj.Property.Name
+
+			templateUpdates = append(templateUpdates, &templateUpdate{
+				Title:        currentUpdate.Obj.Property.Head,
+				Body:         currentUpdate.Obj.Property.Text,
+				AuthorName:   authorName,
+				RelativeTime: updateTime.FromNow(),
+				Path:         timelineVenture.Path,
+				Venture:      timelineVenture,
+				Timelines: []templateTimeline{
+					{
+						Name: timelineName,
+						Path: timelinePath,
+					},
+				},
 			})
 		}
 	}
 
+	return templateUpdates, nil
+}
+
+func (u *User) createReminder(tsk *task.Task) error {
+	var userEmail string
+	userID := tsk.Obj.Metadata[metadata.UserID]
+	{
+		user, err := u.searchUser(userID)
+		if err != nil {
+			return tracer.Mask(err)
+		}
+		userEmail = user.Obj.Property.Mail
+	}
+
+	templateUpdates, err := u.calculateUserUpdates(tsk)
+	if err != nil {
+		return tracer.Mask(err)
+	}
+
+	// In case there have not been any updates posted within the past week,
+	// we do not intend to send reminders.
+	if len(templateUpdates) == 0 {
+		return nil
+	}
+
 	client := postmark.NewClient(u.postmarkTokenServer, u.postmarkTokenAccount)
 	templateEmail := postmark.TemplatedEmail{
-		TemplateAlias: "new-updates-notification",
+		TemplateAlias: "daily-update-notification",
 		TemplateModel: map[string]interface{}{
 			// Mustache templates aren't powerful enough to choose is or are depending on the count in an array. Instead we
 			// pass the string value in as a template variable.
-			"singular": totalRecentUpdates == 1,
-			"count":    totalRecentUpdates,
-			"ventures": templateVentures,
+			"singular": len(templateUpdates) == 1,
+			"count":    len(templateUpdates),
+			"updates":  templateUpdates,
 		},
 		From:       "notifications@venturemark.co",
 		To:         userEmail,
