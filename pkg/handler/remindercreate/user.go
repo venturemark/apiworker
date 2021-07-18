@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -203,7 +204,8 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 			}
 			authorName := users[authorID].Obj.Property.Name
 
-			templateUpdates = append(templateUpdates, &templateUpdate{
+			ventureUpdates[ventureID][updateIDRounded] = &templateUpdate{
+				IDNumeric:    updateIDNumeric,
 				Title:        currentUpdate.Obj.Property.Head,
 				Body:         currentUpdate.Obj.Property.Text,
 				AuthorName:   authorName,
@@ -216,9 +218,14 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 						Path: timelinePath,
 					},
 				},
-			})
+			}
+			templateUpdates = append(templateUpdates, ventureUpdates[ventureID][updateIDRounded])
 		}
 	}
+
+	sort.Slice(templateUpdates, func(i, j int) bool {
+		return templateUpdates[i].IDNumeric > templateUpdates[j].IDNumeric
+	})
 
 	return templateUpdates, nil
 }
