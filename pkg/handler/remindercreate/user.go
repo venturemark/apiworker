@@ -263,7 +263,31 @@ func formatUpdateContent(upd *schema.Update) (string, string, error) {
 	if updateFormat == "slate" {
 		return formatUpdateContentSlate(title, body)
 	}
-	return title, body, nil
+	return formatUpdateContentPlain(title, body)
+}
+
+func formatUpdateContentPlain(title string, body string) (string, string, error) {
+	titleNode := slate.Node{
+		Children: slate.Nodes{
+			{
+				Text: title,
+			},
+		},
+		Type:     "title",
+	}
+
+	bodyNodes := slate.Nodes{
+		{
+			Children: slate.Nodes{
+				{
+					Text: body,
+				},
+			},
+			Type: "title",
+		},
+	}
+
+	return titleNode.ToHTML(slateStyles), bodyNodes.ToHTML(slateStyles), nil
 }
 
 func (u *User) createReminder(tsk *task.Task) error {
