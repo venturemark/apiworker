@@ -273,7 +273,7 @@ func formatUpdateContentPlain(title string, body string) (string, string, error)
 				Text: title,
 			},
 		},
-		Type:     "title",
+		Type: "title",
 	}
 
 	bodyNodes := slate.Nodes{
