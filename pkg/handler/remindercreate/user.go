@@ -23,6 +23,8 @@ import (
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
+
+	"github.com/venturemark/apiworker/pkg/slate"
 )
 
 type UserConfig struct {
@@ -195,6 +197,11 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 				return nil, tracer.Mask(err)
 			}
 
+			title, body, err := formatUpdateContent(currentUpdate)
+			if err != nil {
+				return nil, tracer.Mask(err)
+			}
+
 			authorID := currentUpdate.Obj.Metadata[metadata.UserID]
 			if _, ok := users[authorID]; !ok {
 				users[authorID], err = u.searchUser(authorID)
@@ -206,8 +213,8 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 
 			ventureUpdates[ventureID][updateIDRounded] = &templateUpdate{
 				IDNumeric:    updateIDNumeric,
-				Title:        currentUpdate.Obj.Property.Head,
-				Body:         currentUpdate.Obj.Property.Text,
+				Title:        title,
+				Body:         body,
 				AuthorName:   authorName,
 				RelativeTime: updateTime.FromNow(),
 				Path:         timelineVenture.Path,
@@ -228,6 +235,35 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 	})
 
 	return templateUpdates, nil
+}
+
+var slateStyles = map[string]string{
+	"title":     "Margin:0;line-height:24px;mso-line-height-rule:exactly;font-family:lato, 'helvetica neue', helvetica, arial, sans-serif;font-size:20px;font-style:normal;font-weight:normal;color:#333333",
+	"paragraph": "Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;font-family:lato, 'helvetica neue', helvetica, arial, sans-serif;line-height:21px;color:#333333;font-size:14px",
+}
+
+func formatUpdateContentSlate(titleString string, bodyString string) (string, string, error) {
+	var titleNode slate.Node
+	if err := json.Unmarshal([]byte(titleString), &titleNode); err != nil {
+		return "", "", tracer.Mask(err)
+	}
+
+	var bodyNodes slate.Nodes
+	if err := json.Unmarshal([]byte(bodyString), &bodyNodes); err != nil {
+		return "", "", tracer.Mask(err)
+	}
+
+	return titleNode.ToHTML(slateStyles), bodyNodes.ToHTML(slateStyles), nil
+}
+
+func formatUpdateContent(upd *schema.Update) (string, string, error) {
+	updateFormat := upd.Obj.Metadata[metadata.UpdateFormat]
+	title := upd.Obj.Property.Head
+	body := upd.Obj.Property.Text
+	if updateFormat == "slate" {
+		return formatUpdateContentSlate(title, body)
+	}
+	return title, body, nil
 }
 
 func (u *User) createReminder(tsk *task.Task) error {
@@ -256,7 +292,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 	templateEmail := postmark.TemplatedEmail{
 		TemplateAlias: "daily-update-notification",
 		TemplateModel: map[string]interface{}{
-			// Mustache templates aren't powerful enough to choose is or are depending on the count in an array. Instead we
+			// Mustache templates aren't powerful enough to choose "is" or "are" depending on the count in an array. Instead, we
 			// pass the string value in as a template variable.
 			"singular": len(templateUpdates) == 1,
 			"count":    len(templateUpdates),
