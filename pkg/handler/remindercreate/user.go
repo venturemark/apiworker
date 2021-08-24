@@ -283,7 +283,7 @@ func formatUpdateContentPlain(title string, body string) (string, string, error)
 					Text: body,
 				},
 			},
-			Type: "title",
+			Type: "paragraph",
 		},
 	}
 
@@ -314,7 +314,7 @@ func (u *User) createReminder(tsk *task.Task) error {
 
 	client := postmark.NewClient(u.postmarkTokenServer, u.postmarkTokenAccount)
 	templateEmail := postmark.TemplatedEmail{
-		TemplateAlias: "daily-update-notification",
+		TemplateAlias: "daily-update-notification-slate",
 		TemplateModel: map[string]interface{}{
 			// Mustache templates aren't powerful enough to choose "is" or "are" depending on the count in an array. Instead, we
 			// pass the string value in as a template variable.
