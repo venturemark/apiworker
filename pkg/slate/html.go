@@ -3,11 +3,12 @@ package slate
 import (
 	"fmt"
 	"html"
+	"io"
 	"strings"
 )
 
-func textNodeToHTML(node Node, styles map[string]string, builder *strings.Builder) {
-	builder.WriteString(html.EscapeString(node.Text))
+func textNodeToHTML(node Node, builder io.StringWriter) {
+	_, _ = builder.WriteString(html.EscapeString(node.Text))
 }
 
 func containerNodeToHTML(node Node, styles map[string]string, builder *strings.Builder) {
@@ -15,10 +16,16 @@ func containerNodeToHTML(node Node, styles map[string]string, builder *strings.B
 	style := ""
 	if node.Type == "title" {
 		tag = "h3"
-		style = styles["title"]
+		style = styles[node.Type]
 	} else if node.Type == "paragraph" {
 		tag = "p"
-		style = styles["paragraph"]
+		style = styles[node.Type]
+	} else if node.Type == "unordered-list" {
+		tag = "ul"
+		style = styles[node.Type]
+	} else if node.Type == "list-item" {
+		tag = "li"
+		style = styles[node.Type]
 	} else if node.Type == "" {
 		tag = ""
 	}
@@ -33,7 +40,7 @@ func containerNodeToHTML(node Node, styles map[string]string, builder *strings.B
 
 	for _, childNode := range node.Children {
 		if childNode.Text != "" {
-			textNodeToHTML(childNode, styles, builder)
+			textNodeToHTML(childNode, builder)
 		} else {
 			containerNodeToHTML(childNode, styles, builder)
 		}

@@ -243,9 +243,13 @@ var slateStyles = map[string]string{
 }
 
 func formatUpdateContentSlate(titleString string, bodyString string) (string, string, error) {
-	var titleNode slate.Node
-	if err := json.Unmarshal([]byte(titleString), &titleNode); err != nil {
-		return "", "", tracer.Mask(err)
+	titleNode := slate.Node{
+		Children: slate.Nodes{
+			{
+				Text: titleString,
+			},
+		},
+		Type: "title",
 	}
 
 	var bodyNodes slate.Nodes
