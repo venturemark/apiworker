@@ -15,6 +15,7 @@ import (
 	"github.com/venturemark/apicommon/pkg/key"
 	"github.com/venturemark/apicommon/pkg/metadata"
 	"github.com/venturemark/apicommon/pkg/schema"
+	"github.com/venturemark/apicommon/pkg/slate"
 	"github.com/venturemark/apigengo/pkg/pbf/timeline"
 	"github.com/venturemark/apigengo/pkg/pbf/venture"
 	"github.com/xh3b4sd/logger"
@@ -23,8 +24,6 @@ import (
 	"github.com/xh3b4sd/rescue"
 	"github.com/xh3b4sd/rescue/pkg/task"
 	"github.com/xh3b4sd/tracer"
-
-	"github.com/venturemark/apiworker/pkg/slate"
 )
 
 type UserConfig struct {
@@ -240,12 +239,17 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 var slateStyles = map[string]string{
 	"title":     "Margin:0;line-height:24px;mso-line-height-rule:exactly;font-family:lato, 'helvetica neue', helvetica, arial, sans-serif;font-size:20px;font-style:normal;font-weight:normal;color:#333333",
 	"paragraph": "Margin:0;-webkit-text-size-adjust:none;-ms-text-size-adjust:none;mso-line-height-rule:exactly;font-family:lato, 'helvetica neue', helvetica, arial, sans-serif;line-height:21px;color:#333333;font-size:14px",
+	"list-item": "font-family:lato, 'helvetica neue', helvetica, arial, sans-serif;color:#333333;font-size:14px",
 }
 
 func formatUpdateContentSlate(titleString string, bodyString string) (string, string, error) {
-	var titleNode slate.Node
-	if err := json.Unmarshal([]byte(titleString), &titleNode); err != nil {
-		return "", "", tracer.Mask(err)
+	titleNode := slate.Node{
+		Children: slate.Nodes{
+			{
+				Text: titleString,
+			},
+		},
+		Type: "title",
 	}
 
 	var bodyNodes slate.Nodes
