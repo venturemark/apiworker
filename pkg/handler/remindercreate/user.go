@@ -137,9 +137,8 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 
 	for _, currentTimeline := range timelines {
 		ventureID := currentTimeline.Obj.Metadata[metadata.VentureID]
-
+		timelineID := currentTimeline.Obj.Metadata[metadata.TimelineID]
 		timelineName := currentTimeline.Obj.Property.Name
-		timelineSlug := strings.ReplaceAll(strings.ToLower(timelineName), " ", "")
 
 		var timelineVenture templateVenture
 		for _, currentVenture := range ventures {
@@ -148,8 +147,7 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 			}
 
 			ventureName := currentVenture.Obj.Property.Name
-			ventureSlug := strings.ReplaceAll(strings.ToLower(ventureName), " ", "")
-			venturePath := fmt.Sprintf("/%s", ventureSlug)
+			venturePath := fmt.Sprintf("/%s", ventureID)
 			timelineVenture = templateVenture{
 				Name: ventureName,
 				Path: venturePath,
@@ -160,7 +158,7 @@ func (u *User) calculateUserUpdates(tsk *task.Task) ([]*templateUpdate, error) {
 			return nil, tracer.Mask(errors.New("venture not found"))
 		}
 
-		timelinePath := fmt.Sprintf("%s/%s", timelineVenture.Path, timelineSlug)
+		timelinePath := fmt.Sprintf("%s/%s", timelineVenture.Path, timelineID)
 
 		timelineUpdates, err := u.searchUpdates(currentTimeline)
 		if err != nil {
