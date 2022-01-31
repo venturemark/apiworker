@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/keighl/postmark v0.0.0-20190821160221-28358b1a94e3
-	github.com/nleeper/goment v1.4.2
+	github.com/nleeper/goment v1.4.4
 	github.com/prometheus/client_golang v1.10.0
 	github.com/spf13/cobra v1.2.1
 	github.com/venturemark/apicommon v0.9.1
