@@ -11,8 +11,8 @@ require (
 	github.com/venturemark/apigengo v0.4.2
 	github.com/xh3b4sd/logger v0.2.0
 	github.com/xh3b4sd/mutant v0.1.1
-	github.com/xh3b4sd/redigo v0.17.1
+	github.com/xh3b4sd/redigo v0.28.0
 	github.com/xh3b4sd/rescue v0.5.0
-	github.com/xh3b4sd/tracer v0.4.0
+	github.com/xh3b4sd/tracer v0.5.1
 	goji.io v2.0.2+incompatible // indirect
 )
